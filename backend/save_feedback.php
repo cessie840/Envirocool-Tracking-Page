@@ -10,16 +10,19 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
     exit(0);
 }
 
-$trackingNumber = isset($_POST["tracking_number"]) ? trim($_POST["tracking_number"]) : "";
-$rating = isset($_POST["rating"]) ? trim($_POST["rating"]) : "";
-$feedback = isset($_POST["feedback"]) ? trim($_POST["feedback"]) : "";
+// ✅ Parse JSON body
+$input = json_decode(file_get_contents("php://input"), true);
+
+$trackingNumber = isset($input["tracking_number"]) ? trim($input["tracking_number"]) : "";
+$rating = isset($input["rating"]) ? trim($input["rating"]) : "";
+$feedback = isset($input["comments"]) ? trim($input["comments"]) : "";
 
 if (empty($trackingNumber) || empty($rating) || empty($feedback)) {
     echo json_encode(["success" => false, "message" => "All fields are required."]);
     exit;
 }
 
-$sql = "UPDATE Transactions SET customer_rating = ?, cancelled_reason = ? WHERE tracking_number = ?";
+$sql = "UPDATE Transactions SET customer_rating = ?, customer_feedback = ? WHERE tracking_number = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("sss", $rating, $feedback, $trackingNumber);
 

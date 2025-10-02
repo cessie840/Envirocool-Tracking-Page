@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 
 const FeedbackModal = ({
@@ -7,8 +7,22 @@ const FeedbackModal = ({
   feedback,
   setFeedback,
   trackingNumber,
+  onFeedbackSubmitted, // parent callback
 }) => {
+  const [submitting, setSubmitting] = useState(false); // prevent double clicks
+  const [disabled, setDisabled] = useState(false); // disable modal after submission
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (show && !disabled) {
+      setFeedback({ rating: 0, comments: "" });
+    }
+  }, [show, setFeedback, disabled]);
+
   const handleSubmitFeedback = async () => {
+    if (submitting) return; // prevent double submission
+    setSubmitting(true);
+
     try {
       const response = await fetch(
         "http://localhost/DeliveryTrackingSystem/save_feedback.php",
@@ -23,14 +37,21 @@ const FeedbackModal = ({
         }
       );
       const data = await response.json();
+
       if (data.success) {
         alert("Thank you for your feedback!");
+        setDisabled(true); // disable modal after submission
         onHide();
+        if (typeof onFeedbackSubmitted === "function") {
+          onFeedbackSubmitted(); // notify parent
+        }
       } else {
         alert(data.message || "Failed to save feedback.");
       }
     } catch (error) {
       console.error("Error submitting feedback:", error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -62,8 +83,10 @@ const FeedbackModal = ({
                   ? "bi-star-fill text-warning"
                   : "bi-star"
               } fs-1 mx-2`}
-              style={{ cursor: "pointer" }}
-              onClick={() => setFeedback({ ...feedback, rating: star })}
+              style={{ cursor: disabled ? "not-allowed" : "pointer" }}
+              onClick={() =>
+                !disabled && setFeedback({ ...feedback, rating: star })
+              }
             ></i>
           ))}
         </div>
@@ -77,22 +100,28 @@ const FeedbackModal = ({
             placeholder="Share your feedback..."
             value={feedback.comments}
             onChange={(e) =>
+              !disabled &&
               setFeedback({ ...feedback, comments: e.target.value })
             }
+            disabled={disabled}
           />
         </Form.Group>
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="outline-secondary" onClick={onHide}>
+        <Button
+          variant="outline-secondary"
+          onClick={onHide}
+          disabled={disabled}
+        >
           Cancel
         </Button>
         <Button
           variant="success"
-          disabled={!feedback.rating}
+          disabled={disabled || !feedback.rating || submitting}
           onClick={handleSubmitFeedback}
         >
-          Submit Feedback
+          {submitting ? "Submitting..." : "Submit Feedback"}
         </Button>
       </Modal.Footer>
     </Modal>

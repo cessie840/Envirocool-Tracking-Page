@@ -23,6 +23,7 @@ const Customer = () => {
   const [location, setLocation] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedback, setFeedback] = useState({ rating: 0, comments: "" });
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false); // ✅ new state
 
   // Fetch delivery details
   useEffect(() => {
@@ -40,6 +41,15 @@ const Customer = () => {
         const data = await response.json();
         if (data.success) {
           setDeliveryDetails(data);
+
+          // Pre-check if feedback already exists
+          if (
+            data.transaction.customer_rating ||
+            data.transaction.customer_feedback
+          ) {
+            setFeedbackSubmitted(true); // ✅ disable button if feedback exists
+          }
+
           if (data.transaction.latitude && data.transaction.longitude) {
             setLocation({
               lat: parseFloat(data.transaction.latitude),
@@ -100,7 +110,7 @@ const Customer = () => {
       <div
         className="d-flex justify-content-center align-items-center min-vh-100"
         style={{
-          background: "linear-gradient(135deg, #1e3c72, #2a5298)",
+          background: "linear-gradient(135deg, #e3f2fd, #bbdefb)",
         }}
       >
         <Spinner animation="border" variant="light" />
@@ -113,7 +123,7 @@ const Customer = () => {
       <div
         className="d-flex justify-content-center align-items-center min-vh-100"
         style={{
-          background: "linear-gradient(135deg, #1e3c72, #2a5298)",
+          background: "linear-gradient(135deg, #e3f2fd, #bbdefb)",
         }}
       >
         <h5 className="text-white fw-bold">
@@ -147,7 +157,7 @@ const Customer = () => {
             alt="Envirocool Logo"
             style={{
               height: "80px",
-              margin: "20px"
+              margin: "20px",
             }}
             className="mb-3"
           />
@@ -181,6 +191,7 @@ const Customer = () => {
                 background: "#07b54aff",
                 border: "none",
               }}
+              disabled={feedbackSubmitted} // ✅ disable after submission
             >
               Confirm Delivery & Give Feedback
             </Button>
@@ -204,6 +215,7 @@ const Customer = () => {
         feedback={feedback}
         setFeedback={setFeedback}
         trackingNumber={transaction.tracking_number}
+        onFeedbackSubmitted={() => setFeedbackSubmitted(true)} // ✅ update parent
       />
 
       {/* Simple Fade-in Animation */}

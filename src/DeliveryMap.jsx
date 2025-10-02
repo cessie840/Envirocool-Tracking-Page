@@ -11,6 +11,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTruckFast } from "@fortawesome/free-solid-svg-icons";
 import { renderToString } from "react-dom/server";
 
+// ✅ Custom Truck Icon
 const truckIcon = L.divIcon({
   className: "custom-truck-icon",
   html: `<div style="font-size:32px; color:#007bff;">
@@ -33,23 +34,16 @@ const DeliveryMap = () => {
         const data = await response.json();
 
         if (Array.isArray(data)) {
-          const found = data.find((d) => d.device_id === targetDeviceId);
-          if (found) {
-            setDevice(found);
+          const records = data.filter((d) => d.device_id === targetDeviceId);
 
-            // add to trail if new coordinate
-            setTrail((prevTrail) => {
-              const lastPoint = prevTrail[prevTrail.length - 1];
-              const newPoint = [found.lat, found.lng];
-              if (
-                !lastPoint ||
-                lastPoint[0] !== newPoint[0] ||
-                lastPoint[1] !== newPoint[1]
-              ) {
-                return [...prevTrail, newPoint];
-              }
-              return prevTrail;
-            });
+          if (records.length > 0) {
+            // latest position is the last one
+            const latest = records[records.length - 1];
+            setDevice(latest);
+
+            // full trail from history
+            const historyTrail = records.map((r) => [r.lat, r.lng]);
+            setTrail(historyTrail);
           }
         } else {
           console.error("Invalid data format", data);
@@ -79,11 +73,12 @@ const DeliveryMap = () => {
       </h5>
       <MapContainer
         center={[device.lat, device.lng]}
-        zoom={13}
+        zoom={16}
         style={{ height: "500px", borderRadius: "12px" }}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
+        {/* Marker at the latest position */}
         <Marker position={[device.lat, device.lng]} icon={truckIcon}>
           <Popup>
             <b>Device:</b> {device.device_id}
@@ -92,6 +87,7 @@ const DeliveryMap = () => {
           </Popup>
         </Marker>
 
+        {/* Full trail */}
         {trail.length > 1 && (
           <Polyline positions={trail} color="blue" weight={4} opacity={0.7} />
         )}
