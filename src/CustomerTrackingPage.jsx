@@ -20,7 +20,7 @@ const CustomerTrackingPage = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        "http://localhost/DeliveryTrackingSystem/get_delivery_by_tracking.php",
+        "http://13.239.143.31/customer/get_delivery_by_tracking.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -30,7 +30,7 @@ const Customer = () => {
     const fetchDeliveryDetails = async () => {
       try {
         const response = await fetch(
-          "http://localhost/DeliveryTrackingSystem/get_delivery_by_tracking.php",
+          "http://13.239.143.31/customer/get_delivery_by_tracking.php",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -76,7 +76,7 @@ const Customer = () => {
     const fetchRoute = async () => {
       try {
         const response = await fetch(
-          "http://localhost/DeliveryTrackingSystem/get_route.php",
+          "http://13.239.143.31/customer/get_route.php",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -183,17 +183,20 @@ const Customer = () => {
           <div className="col-lg-5">
             <OrderDetails transaction={transaction} items={items} />
             <Button
-              variant="primary"
+              variant={feedbackSubmitted ? "success" : "primary"}
               size="lg"
               className="w-100 fw-bold rounded-3 mt-3"
               onClick={() => setShowFeedbackModal(true)}
               style={{
-                background: "#07b54aff",
+                background: feedbackSubmitted ? "#4caf50" : "#07b54aff",
                 border: "none",
+                cursor: feedbackSubmitted ? "not-allowed" : "pointer",
               }}
               disabled={feedbackSubmitted} // ✅ disable after submission
             >
-              Confirm Delivery & Give Feedback
+              {feedbackSubmitted
+                ? "Feedback Already Submitted"
+                : "Confirm Delivery & Give Feedback"}
             </Button>
           </div>
 

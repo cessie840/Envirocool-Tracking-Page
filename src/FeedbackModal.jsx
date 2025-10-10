@@ -25,7 +25,7 @@ const FeedbackModal = ({
 
     try {
       const response = await fetch(
-        "http://localhost/DeliveryTrackingSystem/save_feedback.php",
+        "http://13.239.143.31/customer/save_feedback.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
