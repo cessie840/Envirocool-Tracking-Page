@@ -18,7 +18,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $EXPECTED_API_KEY = 'SecretToBawalMabuksan';
 $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? ($_GET['key'] ?? '');
 
+// ✅ Always send CORS headers even for invalid keys
 if ($apiKey !== $EXPECTED_API_KEY) {
+    header("Access-Control-Allow-Origin: https://cessie840.github.io");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-API-KEY");
+    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
     http_response_code(401);
     echo json_encode(["error" => "Unauthorized access."]);
     exit();
