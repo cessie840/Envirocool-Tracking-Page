@@ -1,103 +1,63 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   MapContainer,
   TileLayer,
   Marker,
-  Polyline,
   Popup,
+  Polyline,
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
-import axios from "axios";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTruckFast } from "@fortawesome/free-solid-svg-icons";
 import { renderToString } from "react-dom/server";
-import { useParams } from "react-router-dom";
-import { PiBuildingApartmentDuotone } from "react-icons/pi";
-import { FaTruckFront, FaLocationDot } from "react-icons/fa6";
+import axios from "axios";
 import "leaflet/dist/leaflet.css";
 
-// ===== Icons =====
-const companyIcon = new L.DivIcon({
-  html: renderToString(
-    <div style={{ textAlign: "center", color: "#14559a" }}>
-      <div
-        style={{
-          backgroundColor: "white",
-          borderRadius: "6px",
-          padding: "2px 6px",
-          fontWeight: "bold",
-          fontSize: "12px",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-          marginBottom: "3px",
-        }}
-      >
-        Envirocool Company
-      </div>
-      <PiBuildingApartmentDuotone style={{ fontSize: "40px" }} />
-    </div>
-  ),
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-});
-
+// ======== Icons ========
 const customerIcon = new L.DivIcon({
   html: renderToString(
     <div style={{ textAlign: "center", color: "#dc2626" }}>
       <div
         style={{
           backgroundColor: "white",
-          borderRadius: "6px",
           padding: "2px 6px",
+          borderRadius: "6px",
+          marginBottom: "3px",
           fontWeight: "bold",
           fontSize: "12px",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-          marginBottom: "3px",
         }}
       >
         Customer
       </div>
-      <FaLocationDot style={{ fontSize: "36px" }} />
+      <i className="fas fa-map-marker-alt" style={{ fontSize: "36px" }}></i>
     </div>
   ),
+  className: "",
   iconSize: [40, 40],
   iconAnchor: [20, 40],
 });
 
-const createTruckIcon = (deviceId, status) => {
-  const colorMap = {
-    Moving: "#1e5a04",
-    Stopped: "#dc2626",
-    Traffic: "#f59e0b",
-    Completed: "#53a967",
-    Inactive: "#6b7280",
-  };
+// ======== Truck Icon Generator ========
+const createTruckIcon = (status) => {
+  const color =
+    status === "Moving"
+      ? "#1e5a04"
+      : status === "Stopped"
+      ? "#dc2626"
+      : "#f59e0b";
 
-  return new L.DivIcon({
+  return L.divIcon({
     html: renderToString(
-      <div
-        style={{ textAlign: "center", color: colorMap[status] || "#1e5a04" }}
-      >
-        <div
-          style={{
-            backgroundColor: "white",
-            borderRadius: "6px",
-            padding: "2px 6px",
-            fontWeight: "bold",
-            fontSize: "12px",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-            marginBottom: "3px",
-          }}
-        >
-          {deviceId.replace(/device[-_]?/i, "Truck ")}
-        </div>
-        <FaTruckFront style={{ fontSize: "36px" }} />
-      </div>
+      <FontAwesomeIcon icon={faTruckFast} style={{ fontSize: 32, color }} />
     ),
-    iconSize: [30, 30],
-    iconAnchor: [-5, 50],
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -35],
   });
 };
 
-// ===== Helper Functions =====
+// ======== Helpers ========
 const deg2rad = (deg) => deg * (Math.PI / 180);
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
@@ -106,187 +66,159 @@ const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 };
 
-const formatDateTime = (dateTime) => {
-  if (!dateTime) return "N/A";
-  const date = new Date(dateTime);
-  if (isNaN(date.getTime())) return dateTime;
-  return date.toLocaleString("en-US", {
-    timeZone: "Asia/Manila",
-    hour12: true,
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-};
-
-// ===== Hook to recenter map =====
-const RecenterMap = ({ bounds }) => {
+// ======== Recenter Hook ========
+const RecenterMap = ({ positions }) => {
   const map = useMap();
   useEffect(() => {
-    if (bounds?.length > 0) map.fitBounds(bounds, { padding: [80, 80] });
-  }, [bounds]);
+    if (positions?.length > 0) {
+      map.fitBounds(positions, { padding: [80, 80] });
+    }
+  }, [positions]);
   return null;
 };
 
-// ===== Main Component =====
-const CustomerDeliveryMap = () => {
-  const { trackingNumber } = useParams();
-  const companyLocation = [14.2091835, 121.1368418];
-
-  const [delivery, setDelivery] = useState(null);
-  const [truckPos, setTruckPos] = useState(null);
-  const [route, setRoute] = useState([]);
-  const [status, setStatus] = useState("Loading...");
+// ======== DeliveryMap Component ========
+const DeliveryMap = ({ targetDeviceId, customerLat, customerLng, apiKey }) => {
+  const [device, setDevice] = useState(null);
+  const [trail, setTrail] = useState([]);
   const [eta, setEta] = useState("Calculating...");
-  const [mapBounds, setMapBounds] = useState([]);
+  const previousPositionRef = useRef(null);
 
-  // Fetch delivery info
+  const customerPosition = [customerLat, customerLng];
+
+  // ======== Fetch Device Data ========
   useEffect(() => {
-    const fetchDelivery = async () => {
+    const fetchDevice = async () => {
       try {
-        const res = await axios.get(
-          `https://13.239.143.31/DeliveryTrackingSystem/get_delivery_by_tracking.php?tracking_number=${trackingNumber}`
+        const response = await axios.get(
+          "https://13.239.143.31/all_devices.php",
+          { headers: { "X-API-KEY": apiKey } }
         );
-        setDelivery(res.data);
-      } catch (err) {
-        console.error("Error fetching delivery info:", err);
+        const data = response.data;
+
+        if (Array.isArray(data)) {
+          const record = data.find((d) => d.device_id === targetDeviceId);
+          if (record) {
+            // Infer status based on previous position
+            let status = "Moving";
+            if (previousPositionRef.current) {
+              const distance = getDistanceKm(
+                previousPositionRef.current.lat,
+                previousPositionRef.current.lng,
+                record.lat,
+                record.lng
+              );
+              status = distance < 0.02 ? "Stopped" : "Moving"; // <20m -> Stopped
+            }
+            previousPositionRef.current = record;
+
+            setDevice({ ...record, status });
+
+            setTrail((prev) => [...prev, [record.lat, record.lng]]);
+
+            // Distance
+            const distanceToCustomer = getDistanceKm(
+              record.lat,
+              record.lng,
+              customerLat,
+              customerLng
+            );
+
+            // Optional ETA calculation (assuming 40 km/h avg)
+            const etaMinutes = (distanceToCustomer / 40) * 60;
+            setEta(`${Math.round(etaMinutes)} min`);
+          }
+        } else {
+          console.error("Invalid data format", data);
+        }
+      } catch (error) {
+        console.error("Error fetching device position:", error);
       }
     };
-    fetchDelivery();
-  }, [trackingNumber]);
 
-  // Track assigned truck
-  useEffect(() => {
-    if (!delivery?.assigned_device_id) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await axios.get(
-          `https://13.239.143.31/DeliveryTrackingSystem/get_current_location.php?device_id=${delivery.assigned_device_id}`
-        );
-        const gps = res.data.data;
-        if (!gps) return;
-
-        const newPos = [parseFloat(gps.lat), parseFloat(gps.lng)];
-        setTruckPos(newPos);
-        setRoute((prev) => [...prev, newPos]);
-
-        // compute ETA + status
-        const distanceKm = getDistanceKm(
-          newPos[0],
-          newPos[1],
-          delivery.latitude,
-          delivery.longitude
-        );
-
-        const etaRes = await axios.get(
-          `https://13.239.143.31/DeliveryTrackingSystem/get_eta.php`,
-          {
-            params: {
-              device_id: delivery.assigned_device_id,
-              distance_km: distanceKm,
-            },
-          }
-        );
-        setEta(etaRes.data?.eta || "N/A");
-        setStatus(distanceKm < 0.05 ? "Arriving Soon" : "On the Way");
-
-        const points = [
-          companyLocation,
-          newPos,
-          [delivery.latitude, delivery.longitude],
-        ];
-        setMapBounds(points);
-      } catch (err) {
-        console.error("Tracking error:", err);
-      }
-    }, 5000);
-
+    fetchDevice();
+    const interval = setInterval(fetchDevice, 5000); // refresh every 5s
     return () => clearInterval(interval);
-  }, [delivery]);
+  }, [targetDeviceId, customerLat, customerLng, apiKey]);
 
-  if (!delivery) return <div className="p-5 text-center">Loading map...</div>;
+  if (!device) {
+    return (
+      <div className="card rounded-4 p-3 border-0 h-100 text-center text-muted py-5">
+        No live location for {targetDeviceId} yet.
+      </div>
+    );
+  }
+
+  const boundsPositions = [[device.lat, device.lng], customerPosition];
 
   return (
-    <div className="p-4">
-      <h4 className="fw-bold text-success mb-3">
-        Tracking No: {delivery.tracking_number}
-      </h4>
-
-      <div
-        className="rounded shadow border border-success"
-        style={{ height: "600px" }}
+    <div className="card rounded-4 p-3 border-0 h-100">
+      <h5 className="fw-bold text-dark mb-3">
+        Live Delivery – {targetDeviceId}
+      </h5>
+      <MapContainer
+        center={[device.lat, device.lng]}
+        zoom={16}
+        style={{ height: "500px", borderRadius: "12px" }}
       >
-        <MapContainer
-          center={companyLocation}
-          zoom={12}
-          style={{ height: "100%", width: "100%" }}
-          scrollWheelZoom={true}
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+        <RecenterMap positions={boundsPositions} />
+
+        {/* Customer Marker */}
+        <Marker position={customerPosition} icon={customerIcon}>
+          <Popup>
+            <b>Customer</b>
+            <br />
+            Distance:{" "}
+            {getDistanceKm(
+              device.lat,
+              device.lng,
+              customerLat,
+              customerLng
+            ).toFixed(2)}{" "}
+            km
+            <br />
+            ETA: {eta}
+          </Popup>
+        </Marker>
+
+        {/* Truck Marker */}
+        <Marker
+          position={[device.lat, device.lng]}
+          icon={createTruckIcon(device.status)}
         >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution="&copy; OpenStreetMap contributors"
-          />
+          <Popup>
+            <b>Device:</b> {device.device_id}
+            <br />
+            <b>Status:</b> {device.status}
+            <br />
+            <b>Updated:</b> {device.updated_at}
+            <br />
+            <b>Distance:</b>{" "}
+            {getDistanceKm(
+              device.lat,
+              device.lng,
+              customerLat,
+              customerLng
+            ).toFixed(2)}{" "}
+            km
+            <br />
+            <b>ETA:</b> {eta}
+          </Popup>
+        </Marker>
 
-          <RecenterMap bounds={mapBounds} />
-
-          {/* Company Marker */}
-          <Marker position={companyLocation} icon={companyIcon}>
-            <Popup>Envirocool Company</Popup>
-          </Marker>
-
-          {/* Customer Marker */}
-          {delivery.latitude && delivery.longitude && (
-            <Marker
-              position={[delivery.latitude, delivery.longitude]}
-              icon={customerIcon}
-            >
-              <Popup>
-                <strong>{delivery.customer_name}</strong>
-                <br />
-                {delivery.customer_address}
-                <br />
-                <strong>Status:</strong> {delivery.status}
-              </Popup>
-            </Marker>
-          )}
-
-          {/* Truck Marker */}
-          {truckPos && (
-            <>
-              <Marker
-                position={truckPos}
-                icon={createTruckIcon(delivery.assigned_device_id, status)}
-              >
-                <Popup>
-                  <strong>Truck:</strong>{" "}
-                  {delivery.assigned_device_id.replace(
-                    /device[-_]?/i,
-                    "Truck "
-                  )}
-                  <br />
-                  <strong>Status:</strong> {status}
-                  <br />
-                  <strong>ETA:</strong> {eta}
-                  <br />
-                  <strong>Last Update:</strong> {formatDateTime(new Date())}
-                </Popup>
-              </Marker>
-
-              {route.length > 1 && (
-                <Polyline positions={route} color="#1e5a04" weight={3} />
-              )}
-            </>
-          )}
-        </MapContainer>
-      </div>
+        {/* Trail Polyline */}
+        {trail.length > 1 && (
+          <Polyline positions={trail} color="blue" weight={4} opacity={0.7} />
+        )}
+      </MapContainer>
     </div>
   );
 };
 
-export default CustomerDeliveryMap;
+export default DeliveryMap;
