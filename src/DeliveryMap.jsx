@@ -134,7 +134,7 @@ const RecenterMap = ({ bounds }) => {
 };
 
 // ===== Main Component =====
-const CustomerDeliveryMap = () => {
+const DeliveryMap = () => {
   const { trackingNumber } = useParams();
   const companyLocation = [14.2091835, 121.1368418];
 
@@ -145,12 +145,15 @@ const CustomerDeliveryMap = () => {
   const [eta, setEta] = useState("Calculating...");
   const [mapBounds, setMapBounds] = useState([]);
 
-  // Fetch delivery info
   useEffect(() => {
     const fetchDelivery = async () => {
       try {
-        const res = await axios.get(
-          `https://13.239.143.31/customer/get_delivery_by_tracking.php?tracking_number=${trackingNumber}`
+        const res = await axios.post(
+          "https://13.239.143.31/customer/get_delivery_by_tracking.php",
+          { tracking_number: trackingNumber },
+          {
+            headers: { "Content-Type": "application/json" },
+          }
         );
         setDelivery(res.data);
       } catch (err) {
@@ -289,4 +292,4 @@ const CustomerDeliveryMap = () => {
   );
 };
 
-export default CustomerDeliveryMap;
+export default DeliveryMap;
