@@ -1,99 +1,144 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   MapContainer,
   TileLayer,
   Marker,
-  Popup,
   Polyline,
+  Popup,
 } from "react-leaflet";
 import L from "leaflet";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTruckFast } from "@fortawesome/free-solid-svg-icons";
-import { renderToString } from "react-dom/server";
+import axios from "axios";
 
-// ✅ Custom Truck Icon
-const truckIcon = L.divIcon({
-  className: "custom-truck-icon",
-  html: `<div style="font-size:32px; color:#007bff;">
-           ${renderToString(<FontAwesomeIcon icon={faTruckFast} />)}
-         </div>`,
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-  popupAnchor: [0, -35],
+// --- ICONS ---
+const companyIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+  iconSize: [35, 35],
 });
 
-const DeliveryMap = () => {
-  const [device, setDevice] = useState(null);
-  const [trail, setTrail] = useState([]);
-  const targetDeviceId = "DEVICE_004";
+const truckIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/1995/1995470.png",
+  iconSize: [40, 40],
+});
+
+const customerIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/4470/4470312.png",
+  iconSize: [40, 40],
+});
+
+export default function DeliveryMap({ trackingNumber }) {
+  const [delivery, setDelivery] = useState(null);
+  const [customerCoords, setCustomerCoords] = useState(null);
+  const [eta, setEta] = useState(null);
 
   useEffect(() => {
-    const fetchDevice = async () => {
+    if (!trackingNumber) return;
+
+    const fetchData = async () => {
       try {
-        const response = await fetch("http://13.239.143.31/all_devices.php");
-        const data = await response.json();
+        const res = await axios.get(
+          `https://13.239.143.31/customer/map/get_delivery_by_tracking.php?tracking_number=${trackingNumber}`
+        );
+        const data = res.data;
 
-        if (Array.isArray(data)) {
-          const records = data.filter((d) => d.device_id === targetDeviceId);
+        setDelivery(data);
 
-          if (records.length > 0) {
-            // latest position is the last one
-            const latest = records[records.length - 1];
-            setDevice(latest);
+        // Geocode customer address (using OpenStreetMap)
+        const geo = await axios.get(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            data.customer_address
+          )}`
+        );
 
-            // full trail from history
-            const historyTrail = records.map((r) => [r.lat, r.lng]);
-            setTrail(historyTrail);
-          }
-        } else {
-          console.error("Invalid data format", data);
+        if (geo.data && geo.data.length > 0) {
+          setCustomerCoords({
+            lat: parseFloat(geo.data[0].lat),
+            lng: parseFloat(geo.data[0].lon),
+          });
         }
-      } catch (error) {
-        console.error("Error fetching device position:", error);
+      } catch (err) {
+        console.error("Error fetching delivery:", err);
       }
     };
 
-    fetchDevice();
-    const interval = setInterval(fetchDevice, 5000); // refresh every 5s
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // refresh every 10s
     return () => clearInterval(interval);
-  }, []);
+  }, [trackingNumber]);
 
-  if (!device) {
-    return (
-      <div className="card rounded-4 p-3 border-0 h-100 text-center text-muted py-5">
-        No live location for {targetDeviceId} yet.
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (delivery && customerCoords) {
+      // --- Calculate ETA (using haversine distance + average speed 40 km/h) ---
+      const R = 6371; // km
+      const dLat = ((customerCoords.lat - delivery.truck_lat) * Math.PI) / 180;
+      const dLon = ((customerCoords.lng - delivery.truck_lng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((delivery.truck_lat * Math.PI) / 180) *
+          Math.cos((customerCoords.lat * Math.PI) / 180) *
+          Math.sin(dLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      const avgSpeed = 40; // km/h
+      const etaHours = distance / avgSpeed;
+      const etaMinutes = Math.round(etaHours * 60);
+
+      setEta(etaMinutes);
+    }
+  }, [delivery, customerCoords]);
+
+  if (!delivery || !customerCoords) return <p>Loading map...</p>;
 
   return (
-    <div className="card rounded-4 p-3 border-0 h-100">
-      <h5 className="fw-bold text-dark mb-3">
-        Live Location – {targetDeviceId}
-      </h5>
-      <MapContainer
-        center={[device.lat, device.lng]}
-        zoom={16}
-        style={{ height: "500px", borderRadius: "12px" }}
+    <MapContainer
+      center={[delivery.truck_lat, delivery.truck_lng]}
+      zoom={12}
+      style={{ height: "80vh", width: "100%" }}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://osm.org">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      {/* Company Marker */}
+      <Marker
+        position={[delivery.company_lat, delivery.company_lng]}
+        icon={companyIcon}
       >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Popup>🏢 Envirocool Company</Popup>
+      </Marker>
 
-        {/* Marker at the latest position */}
-        <Marker position={[device.lat, device.lng]} icon={truckIcon}>
-          <Popup>
-            <b>Device:</b> {device.device_id}
-            <br />
-            <b>Updated:</b> {device.updated_at}
-          </Popup>
-        </Marker>
+      {/* Truck Marker */}
+      <Marker
+        position={[delivery.truck_lat, delivery.truck_lng]}
+        icon={truckIcon}
+      >
+        <Popup>
+          🚚 Truck Location <br />
+          Status: {delivery.status} <br />
+          ETA: {eta ? `${eta} mins` : "Calculating..."}
+        </Popup>
+      </Marker>
 
-        {/* Full trail */}
-        {trail.length > 1 && (
-          <Polyline positions={trail} color="blue" weight={4} opacity={0.7} />
-        )}
-      </MapContainer>
-    </div>
+      {/* Customer Marker */}
+      <Marker
+        position={[customerCoords.lat, customerCoords.lng]}
+        icon={customerIcon}
+      >
+        <Popup>
+          🏠 {delivery.customer_name} <br />
+          {delivery.customer_address}
+        </Popup>
+      </Marker>
+
+      {/* Route Line */}
+      <Polyline
+        positions={[
+          [delivery.truck_lat, delivery.truck_lng],
+          [customerCoords.lat, customerCoords.lng],
+        ]}
+        color="green"
+      />
+    </MapContainer>
   );
-};
-
-export default DeliveryMap;
+}
