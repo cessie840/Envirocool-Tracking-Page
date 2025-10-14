@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
-require_once "../database.php"; // adjust path if needed
+require_once "database.php"; // adjust path if needed
 
 $trackingNumber = $_GET['tracking_number'] ?? '';
 
