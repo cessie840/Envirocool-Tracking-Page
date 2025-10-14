@@ -8,6 +8,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import axios from "axios";
+import "./DeliveryMap.css"; // <-- add this for spinner styles
 
 // --- ICONS ---
 const companyIcon = L.icon({
@@ -29,20 +30,22 @@ export default function DeliveryMap({ trackingNumber }) {
   const [delivery, setDelivery] = useState(null);
   const [customerCoords, setCustomerCoords] = useState(null);
   const [eta, setEta] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!trackingNumber) return;
 
     const fetchData = async () => {
       try {
+        setLoading(true);
+
         const res = await axios.get(
           `https://13.239.143.31/customer/map/get_delivery_by_tracking.php?tracking_number=${trackingNumber}`
         );
         const data = res.data;
-
         setDelivery(data);
 
-        // Geocode customer address (using OpenStreetMap)
+        // --- Geocode customer address ---
         const geo = await axios.get(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
             data.customer_address
@@ -55,8 +58,11 @@ export default function DeliveryMap({ trackingNumber }) {
             lng: parseFloat(geo.data[0].lon),
           });
         }
+
+        setLoading(false);
       } catch (err) {
         console.error("Error fetching delivery:", err);
+        setLoading(false);
       }
     };
 
@@ -67,8 +73,8 @@ export default function DeliveryMap({ trackingNumber }) {
 
   useEffect(() => {
     if (delivery && customerCoords) {
-      // --- Calculate ETA (using haversine distance + average speed 40 km/h) ---
-      const R = 6371; // km
+      // --- Calculate ETA (using haversine distance + avg speed 40 km/h) ---
+      const R = 6371;
       const dLat = ((customerCoords.lat - delivery.truck_lat) * Math.PI) / 180;
       const dLon = ((customerCoords.lng - delivery.truck_lng) * Math.PI) / 180;
       const a =
@@ -79,15 +85,27 @@ export default function DeliveryMap({ trackingNumber }) {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distance = R * c;
 
-      const avgSpeed = 40; // km/h
-      const etaHours = distance / avgSpeed;
-      const etaMinutes = Math.round(etaHours * 60);
-
+      const avgSpeed = 40;
+      const etaMinutes = Math.round((distance / avgSpeed) * 60);
       setEta(etaMinutes);
     }
   }, [delivery, customerCoords]);
 
-  if (!delivery || !customerCoords) return <p>Loading map...</p>;
+  // --- Loading Spinner ---
+  if (loading)
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Fetching delivery details...</p>
+      </div>
+    );
+
+  if (!delivery || !customerCoords)
+    return (
+      <div className="loading-container">
+        <p>Unable to load map data.</p>
+      </div>
+    );
 
   return (
     <MapContainer
