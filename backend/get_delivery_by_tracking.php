@@ -1,7 +1,7 @@
 <?php
 // --- DEBUGGING SETUP ---
 ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/php-error.log'); 
+ini_set('error_log', __DIR__ . '/php-error.log');
 error_reporting(E_ALL);
 
 // --- CORS + Headers ---
@@ -12,23 +12,23 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Access-Control-Allow-Credentials: true");
 header("Content-Type: application/json");
 
-// Handle preflight requests
+// --- Handle preflight requests ---
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
-// Read JSON body
-$data = json_decode(file_get_contents("php://input"), true);
 
-// Validate input
-if (!isset($data['tracking_number']) || empty(trim($data['tracking_number']))) {
+// --- Read JSON or GET param ---
+$input = json_decode(file_get_contents("php://input"), true);
+$trackingNumber = $_GET['tracking_number'] ?? $input['tracking_number'] ?? null;
+
+if (!$trackingNumber || empty(trim($trackingNumber))) {
     echo json_encode(["success" => false, "message" => "Tracking number is required"]);
     exit;
 }
+$trackingNumber = trim($trackingNumber);
 
-$trackingNumber = trim($data["tracking_number"]);
-
-// -------------------- FETCH TRANSACTION --------------------
+// --- FETCH DELIVERY DETAILS ---
 $sql = "
     SELECT 
         t.transaction_id,
@@ -43,15 +43,23 @@ $sql = "
         t.total,
         t.status AS delivery_status,
         t.customer_rating,
-        t.customer_feedback
+        t.customer_feedback,
+        d.assigned_device_id,
+        d.driver,
+        d.latitude,
+        d.longitude,
+        d.status AS truck_status,
+        d.shipout_time,
+        d.completed_time
     FROM Transactions t
+    LEFT JOIN Delivery d ON t.transaction_id = d.transaction_id
     WHERE t.tracking_number = ?
     LIMIT 1
 ";
 
 $stmt = $conn->prepare($sql);
 if (!$stmt) {
-    echo json_encode(["success" => false, "message" => "SQL error (transaction): " . $conn->error]);
+    echo json_encode(["success" => false, "message" => "SQL prepare failed: " . $conn->error]);
     exit;
 }
 $stmt->bind_param("s", $trackingNumber);
@@ -61,25 +69,23 @@ $result = $stmt->get_result();
 if ($row = $result->fetch_assoc()) {
     $transactionId = $row["transaction_id"];
 
-    // -------------------- FETCH ITEMS --------------------
+    // --- FETCH ITEMS ---
     $items = [];
-    $itemsSql = "SELECT description, quantity FROM PurchaseOrder WHERE transaction_id = ?";
-    $itemsStmt = $conn->prepare($itemsSql);
-    if (!$itemsStmt) {
-        echo json_encode(["success" => false, "message" => "SQL error (items): " . $conn->error]);
-        exit;
+    $itemSql = "SELECT description, quantity FROM PurchaseOrder WHERE transaction_id = ?";
+    $itemStmt = $conn->prepare($itemSql);
+    if ($itemStmt) {
+        $itemStmt->bind_param("i", $transactionId);
+        $itemStmt->execute();
+        $itemResult = $itemStmt->get_result();
+        while ($item = $itemResult->fetch_assoc()) {
+            $items[] = $item;
+        }
+        $itemStmt->close();
     }
-    $itemsStmt->bind_param("i", $transactionId);
-    $itemsStmt->execute();
-    $itemsResult = $itemsStmt->get_result();
-    while ($item = $itemsResult->fetch_assoc()) {
-        $items[] = $item;
-    }
-    $itemsStmt->close();
 
     echo json_encode([
         "success" => true,
-        "transaction" => $row,
+        "data" => $row,
         "items" => $items
     ]);
 } else {
