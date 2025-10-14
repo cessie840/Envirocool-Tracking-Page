@@ -30,7 +30,7 @@ const DeliveryMap = ({ trackingNumber }) => {
 
   // ✅ URLs
   const API_URL = "https://13.239.143.31/all_devices.php";
-  const TRANSACTIONS_URL = "https://13.239.143.31/DeliveryTrackingSystem/get_transactions.php";
+  const TRANSACTIONS_URL = "https://13.239.143.31/customer/get_transactions.php";
   const API_KEY = "SecretToBawalMabuksan";
 
   // ✅ Step 1: Fetch the assigned device from existing transactions
