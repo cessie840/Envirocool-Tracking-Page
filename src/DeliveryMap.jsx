@@ -3,19 +3,20 @@ import {
   MapContainer,
   TileLayer,
   Marker,
-  Popup,
   Polyline,
+  Popup,
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
 import axios from "axios";
 import { renderToString } from "react-dom/server";
-import { FaTruckFront, FaLocationDot } from "react-icons/fa6";
-import { PiBuildingApartmentDuotone } from "react-icons/pi";
 import { useParams } from "react-router-dom";
+import { PiBuildingApartmentDuotone } from "react-icons/pi";
+import { FaTruckFront, FaLocationDot } from "react-icons/fa6";
+import "leaflet/dist/leaflet.css";
 
 // ===== Icons =====
-const buildingIcon = new L.DivIcon({
+const companyIcon = new L.DivIcon({
   html: renderToString(
     <div style={{ textAlign: "center", color: "#14559a" }}>
       <div
@@ -31,7 +32,7 @@ const buildingIcon = new L.DivIcon({
       >
         Envirocool Company
       </div>
-      <PiBuildingApartmentDuotone style={{ fontSize: "36px" }} />
+      <PiBuildingApartmentDuotone style={{ fontSize: "40px" }} />
     </div>
   ),
   iconSize: [40, 40],
@@ -52,7 +53,7 @@ const customerIcon = new L.DivIcon({
           marginBottom: "3px",
         }}
       >
-        Customer Location
+        Customer
       </div>
       <FaLocationDot style={{ fontSize: "36px" }} />
     </div>
@@ -69,6 +70,7 @@ const createTruckIcon = (deviceId, status) => {
     Completed: "#53a967",
     Inactive: "#6b7280",
   };
+
   return new L.DivIcon({
     html: renderToString(
       <div
@@ -81,6 +83,7 @@ const createTruckIcon = (deviceId, status) => {
             padding: "2px 6px",
             fontWeight: "bold",
             fontSize: "12px",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
             marginBottom: "3px",
           }}
         >
@@ -106,27 +109,43 @@ const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// ===== Recenter Hook =====
-const RecenterMap = ({ position }) => {
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return "N/A";
+  const date = new Date(dateTime);
+  if (isNaN(date.getTime())) return dateTime;
+  return date.toLocaleString("en-US", {
+    timeZone: "Asia/Manila",
+    hour12: true,
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
+// ===== Hook to recenter map =====
+const RecenterMap = ({ bounds }) => {
   const map = useMap();
   useEffect(() => {
-    if (position) map.setView(position, 14);
-  }, [position]);
+    if (bounds?.length > 0) map.fitBounds(bounds, { padding: [80, 80] });
+  }, [bounds]);
   return null;
 };
 
 // ===== Main Component =====
-const DeliveryMap = () => {
+const CustomerDeliveryMap = () => {
   const { trackingNumber } = useParams();
-  const companyLoc = [14.2091835, 121.1368418];
+  const companyLocation = [14.2091835, 121.1368418];
 
   const [delivery, setDelivery] = useState(null);
   const [truckPos, setTruckPos] = useState(null);
   const [route, setRoute] = useState([]);
-  const [eta, setEta] = useState("Calculating...");
   const [status, setStatus] = useState("Loading...");
+  const [eta, setEta] = useState("Calculating...");
+  const [mapBounds, setMapBounds] = useState([]);
 
-  // Fetch delivery info by tracking number
+  // Fetch delivery info
   useEffect(() => {
     const fetchDelivery = async () => {
       try {
@@ -135,7 +154,7 @@ const DeliveryMap = () => {
         );
         setDelivery(res.data);
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching delivery info:", err);
       }
     };
     fetchDelivery();
@@ -150,7 +169,6 @@ const DeliveryMap = () => {
         const res = await axios.get(
           `https://13.239.143.31/DeliveryTrackingSystem/get_current_location.php?device_id=${delivery.assigned_device_id}`
         );
-
         const gps = res.data.data;
         if (!gps) return;
 
@@ -158,6 +176,7 @@ const DeliveryMap = () => {
         setTruckPos(newPos);
         setRoute((prev) => [...prev, newPos]);
 
+        // compute ETA + status
         const distanceKm = getDistanceKm(
           newPos[0],
           newPos[1],
@@ -176,6 +195,13 @@ const DeliveryMap = () => {
         );
         setEta(etaRes.data?.eta || "N/A");
         setStatus(distanceKm < 0.05 ? "Arriving Soon" : "On the Way");
+
+        const points = [
+          companyLocation,
+          newPos,
+          [delivery.latitude, delivery.longitude],
+        ];
+        setMapBounds(points);
       } catch (err) {
         console.error("Tracking error:", err);
       }
@@ -184,66 +210,83 @@ const DeliveryMap = () => {
     return () => clearInterval(interval);
   }, [delivery]);
 
-  if (!delivery) return <div>Loading your delivery...</div>;
+  if (!delivery) return <div className="p-5 text-center">Loading map...</div>;
 
   return (
-    <div className="p-3">
-      <h4 className="fw-bold mb-3 text-success">
+    <div className="p-4">
+      <h4 className="fw-bold text-success mb-3">
         Tracking No: {delivery.tracking_number}
       </h4>
-      <MapContainer
-        center={companyLoc}
-        zoom={13}
-        style={{ height: "500px", borderRadius: "12px" }}
+
+      <div
+        className="rounded shadow border border-success"
+        style={{ height: "600px" }}
       >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <RecenterMap position={truckPos || companyLoc} />
+        <MapContainer
+          center={companyLocation}
+          zoom={12}
+          style={{ height: "100%", width: "100%" }}
+          scrollWheelZoom={true}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="&copy; OpenStreetMap contributors"
+          />
 
-        {/* Company */}
-        <Marker position={companyLoc} icon={buildingIcon}>
-          <Popup>Envirocool Company</Popup>
-        </Marker>
+          <RecenterMap bounds={mapBounds} />
 
-        {/* Customer */}
-        {delivery.latitude && delivery.longitude && (
-          <Marker
-            position={[delivery.latitude, delivery.longitude]}
-            icon={customerIcon}
-          >
-            <Popup>
-              <strong>{delivery.customer_name}</strong>
-              <br />
-              {delivery.customer_address}
-              <br />
-              Tracking No: {delivery.tracking_number}
-            </Popup>
+          {/* Company Marker */}
+          <Marker position={companyLocation} icon={companyIcon}>
+            <Popup>Envirocool Company</Popup>
           </Marker>
-        )}
 
-        {/* Truck */}
-        {truckPos && (
-          <>
+          {/* Customer Marker */}
+          {delivery.latitude && delivery.longitude && (
             <Marker
-              position={truckPos}
-              icon={createTruckIcon(delivery.assigned_device_id, status)}
+              position={[delivery.latitude, delivery.longitude]}
+              icon={customerIcon}
             >
               <Popup>
-                <b>Truck:</b>{" "}
-                {delivery.assigned_device_id.replace(/device[-_]?/i, "Truck ")}
+                <strong>{delivery.customer_name}</strong>
                 <br />
-                <b>Status:</b> {status}
+                {delivery.customer_address}
                 <br />
-                <b>ETA:</b> {eta}
+                <strong>Status:</strong> {delivery.status}
               </Popup>
             </Marker>
-            {route.length > 1 && (
-              <Polyline positions={route} color="#1e5a04" weight={3} />
-            )}
-          </>
-        )}
-      </MapContainer>
+          )}
+
+          {/* Truck Marker */}
+          {truckPos && (
+            <>
+              <Marker
+                position={truckPos}
+                icon={createTruckIcon(delivery.assigned_device_id, status)}
+              >
+                <Popup>
+                  <strong>Truck:</strong>{" "}
+                  {delivery.assigned_device_id.replace(
+                    /device[-_]?/i,
+                    "Truck "
+                  )}
+                  <br />
+                  <strong>Status:</strong> {status}
+                  <br />
+                  <strong>ETA:</strong> {eta}
+                  <br />
+                  <strong>Last Update:</strong> {formatDateTime(new Date())}
+                </Popup>
+              </Marker>
+
+              {route.length > 1 && (
+                <Polyline positions={route} color="#1e5a04" weight={3} />
+              )}
+            </>
+          )}
+        </MapContainer>
+      </div>
     </div>
   );
 };
 
-export default DeliveryMap;
+export default CustomerDeliveryMap;
