@@ -170,7 +170,7 @@ const DeliveryMap = () => {
     const interval = setInterval(async () => {
       try {
         const res = await axios.get(
-          `https://13.239.143.31/DeliveryTrackingSystem/get_current_location.php?device_id=${delivery.assigned_device_id}`
+          `https://13.239.143.31/DeliveryTrackingSystem/get_current_location.php?device_id=${delivery.transaction.device_id}`
         );
         const gps = res.data.data;
         if (!gps) return;
