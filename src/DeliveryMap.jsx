@@ -131,7 +131,7 @@ const DeliveryMap = () => {
     const fetchDelivery = async () => {
       try {
         const res = await axios.get(
-          `https://13.239.143.31/DeliveryTrackingSystem/get_delivery_by_tracking.php?tracking_number=${trackingNumber}`
+          `https://13.239.143.31/customer/get_delivery_by_tracking.php?tracking_number=${trackingNumber}`
         );
         setDelivery(res.data);
       } catch (err) {
@@ -148,7 +148,7 @@ const DeliveryMap = () => {
     const interval = setInterval(async () => {
       try {
         const res = await axios.get(
-          `https://13.239.143.31/DeliveryTrackingSystem/get_current_location.php?device_id=${delivery.assigned_device_id}`
+          `https://13.239.143.31/customer/get_current_location.php?device_id=${delivery.assigned_device_id}`
         );
 
         const gps = res.data.data;
