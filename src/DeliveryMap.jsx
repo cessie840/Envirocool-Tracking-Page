@@ -24,81 +24,94 @@ const truckIcon = L.divIcon({
 });
 
 const DeliveryMap = ({ trackingNumber }) => {
+  const [transactions, setTransactions] = useState([]);
+  const [devices, setDevices] = useState([]);
   const [assignedDeviceId, setAssignedDeviceId] = useState(null);
   const [device, setDevice] = useState(null);
   const [trail, setTrail] = useState([]);
 
   // ✅ URLs
-  const API_URL = "https://13.239.143.31/all_devices.php";
-  const TRANSACTIONS_URL = "https://13.239.143.31/customer/get_transactions.php";
+  const DEVICES_URL = "https://13.239.143.31/all_devices.php";
+  const TRANSACTIONS_URL =
+    "https://13.239.143.31/customer/get_transactions.php";
   const API_KEY = "SecretToBawalMabuksan";
 
-  // ✅ Step 1: Fetch the assigned device from existing transactions
+  // ✅ Step 1: Fetch transactions
   useEffect(() => {
-    const fetchAssignedDevice = async () => {
+    const fetchTransactions = async () => {
       try {
-        // Example: get all transactions (could be filtered by type/date if needed)
         const response = await axios.get(`${TRANSACTIONS_URL}?type=daily`);
-        const transactions = response.data;
-
-        if (Array.isArray(transactions)) {
-          // Try to find the one matching the tracking number
-          const match = transactions.find(
-            (t) => t.tracking_number === trackingNumber
-          );
-
-          if (match && match.assigned_device_id) {
-            setAssignedDeviceId(match.assigned_device_id);
-          } else {
-            console.warn(
-              "No matching assigned_device_id found for tracking number"
-            );
-          }
+        if (Array.isArray(response.data)) {
+          setTransactions(response.data);
         } else {
-          console.error("Invalid response format:", transactions);
+          console.error("Invalid transactions response:", response.data);
         }
       } catch (error) {
-        console.error("Error fetching transaction info:", error);
+        console.error("Error fetching transactions:", error);
       }
     };
+    fetchTransactions();
+  }, []);
 
-    fetchAssignedDevice();
-  }, [trackingNumber]);
-
-  // ✅ Step 2: Fetch live GPS data from all_devices.php
+  // ✅ Step 2: Fetch devices
   useEffect(() => {
-    if (!assignedDeviceId) return;
-
-    const fetchDevice = async () => {
+    const fetchDevices = async () => {
       try {
-        const response = await axios.get(`${API_URL}?key=${API_KEY}`);
-        const data = response.data;
-
-        if (Array.isArray(data)) {
-          const records = data.filter((d) => d.device_id === assignedDeviceId);
-
-          if (records.length > 0) {
-            const latest = records[records.length - 1];
-            setDevice(latest);
-            const historyTrail = records.map((r) => [r.lat, r.lng]);
-            setTrail(historyTrail);
-          } else {
-            console.warn(`No records found for ${assignedDeviceId}`);
-          }
+        const response = await axios.get(`${DEVICES_URL}?key=${API_KEY}`);
+        if (Array.isArray(response.data)) {
+          setDevices(response.data);
         } else {
-          console.error("Invalid response:", data);
+          console.error("Invalid devices response:", response.data);
         }
       } catch (error) {
-        console.error("Error fetching device position:", error);
+        console.error("Error fetching devices:", error);
       }
     };
-
-    fetchDevice();
-    const interval = setInterval(fetchDevice, 5000);
+    fetchDevices();
+    const interval = setInterval(fetchDevices, 5000);
     return () => clearInterval(interval);
-  }, [assignedDeviceId]);
+  }, []);
 
-  // ✅ Step 3: Render map UI
+  // ✅ Step 3: Match assigned_device_id from transaction with device_id
+  useEffect(() => {
+    if (!transactions.length || !devices.length) return;
+
+    const currentTransaction = transactions.find(
+      (t) => t.tracking_number.trim() === trackingNumber.trim()
+    );
+
+    if (!currentTransaction) {
+      console.warn(
+        `No transaction found for tracking number ${trackingNumber}`
+      );
+      return;
+    }
+
+    const match = devices.find(
+      (d) => d.device_id.trim() === currentTransaction.assigned_device_id.trim()
+    );
+
+    if (!match) {
+      console.warn(
+        `⚠️ No matching assigned_device_id found for tracking number ${trackingNumber}`
+      );
+    } else {
+      console.log(`✅ Found match for ${trackingNumber}: ${match.device_id}`);
+      setAssignedDeviceId(match.device_id);
+      setDevice(match);
+      setTrail([[match.lat, match.lng]]);
+    }
+  }, [transactions, devices, trackingNumber]);
+
+  // ✅ UI Rendering
+  if (!transactions.length || !devices.length) {
+    return (
+      <div className="card rounded-4 p-3 border-0 h-100 text-center text-muted py-5">
+        Loading data for <b>{trackingNumber}</b>...
+      </div>
+    );
+  }
+
   if (!assignedDeviceId) {
     return (
       <div className="card rounded-4 p-3 border-0 h-100 text-center text-muted py-5">
