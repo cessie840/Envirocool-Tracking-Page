@@ -76,7 +76,7 @@ const Customer = () => {
     const fetchRoute = async () => {
       try {
         const response = await fetch(
-          "https://13.239.143.31/customer/get_route.php",
+          "https://13.239.143.31/customer/map/get_route.php",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

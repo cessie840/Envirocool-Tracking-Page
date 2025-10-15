@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// ✅ DeliveryMap.jsx
+import React, { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -7,8 +8,7 @@ import {
   Popup,
 } from "react-leaflet";
 import L from "leaflet";
-import axios from "axios";
-import "./DeliveryMap.css";
+import "leaflet/dist/leaflet.css";
 
 // --- ICONS ---
 const companyIcon = L.icon({
@@ -26,137 +26,104 @@ const customerIcon = L.icon({
   iconSize: [40, 40],
 });
 
-export default function DeliveryMap({ trackingNumber }) {
-  const [delivery, setDelivery] = useState(null);
-  const [customerCoords, setCustomerCoords] = useState(null);
+const DeliveryMap = ({ location, trail, transaction }) => {
   const [eta, setEta] = useState(null);
-  const [loading, setLoading] = useState(true);
 
+  // --- ETA Calculation (Haversine Formula) ---
   useEffect(() => {
-    if (!trackingNumber) return;
+    if (!location || !transaction?.latitude || !transaction?.longitude) return;
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
+    const R = 6371; // Earth radius in km
+    const dLat =
+      ((location.lat - parseFloat(transaction.latitude)) * Math.PI) / 180;
+    const dLon =
+      ((location.lng - parseFloat(transaction.longitude)) * Math.PI) / 180;
 
-        const res = await axios.get(
-          `https://13.239.143.31/customer/map/get_delivery_by_tracking.php?tracking_number=${trackingNumber}`
-        );
-        const data = res.data;
-        setDelivery(data);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((parseFloat(transaction.latitude) * Math.PI) / 180) *
+        Math.cos((location.lat * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
 
-        // --- Geocode customer address ---
-        const geo = await axios.get(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            data.customer_address
-          )}`
-        );
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // in km
 
-        if (geo.data && geo.data.length > 0) {
-          setCustomerCoords({
-            lat: parseFloat(geo.data[0].lat),
-            lng: parseFloat(geo.data[0].lon),
-          });
-        }
+    const avgSpeed = 40; // assume 40 km/h
+    const etaMinutes = Math.round((distance / avgSpeed) * 60);
+    setEta(etaMinutes);
+  }, [location, transaction]);
 
-        setLoading(false);
-      } catch (err) {
-        console.error("Error fetching delivery:", err);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 10000); // refresh every 10s
-    return () => clearInterval(interval);
-  }, [trackingNumber]);
-
-  useEffect(() => {
-    if (delivery && customerCoords) {
-      // --- Calculate ETA (using haversine distance + avg speed 40 km/h) ---
-      const R = 6371;
-      const dLat = ((customerCoords.lat - delivery.truck_lat) * Math.PI) / 180;
-      const dLon = ((customerCoords.lng - delivery.truck_lng) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((delivery.truck_lat * Math.PI) / 180) *
-          Math.cos((customerCoords.lat * Math.PI) / 180) *
-          Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = R * c;
-
-      const avgSpeed = 40;
-      const etaMinutes = Math.round((distance / avgSpeed) * 60);
-      setEta(etaMinutes);
-    }
-  }, [delivery, customerCoords]);
-
-  // --- Loading Spinner ---
-  if (loading)
+  if (!transaction || !location) {
     return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Fetching delivery details...</p>
+      <div className="text-center py-5">
+        <p className="text-muted">Map data unavailable.</p>
       </div>
     );
-
-  if (!delivery || !customerCoords)
-    return (
-      <div className="loading-container">
-        <p>Unable to load map data.</p>
-      </div>
-    );
+  }
 
   return (
-    <MapContainer
-      center={[delivery.truck_lat, delivery.truck_lng]}
-      zoom={12}
-      style={{ height: "80vh", width: "100%" }}
+    <div
+      className="shadow rounded-3 overflow-hidden"
+      style={{ height: "500px", border: "2px solid #e0e0e0" }}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://osm.org">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-
-      {/* Company Marker */}
-      <Marker
-        position={[delivery.company_lat, delivery.company_lng]}
-        icon={companyIcon}
+      <MapContainer
+        center={[transaction.latitude, transaction.longitude]}
+        zoom={13}
+        style={{ height: "100%", width: "100%" }}
       >
-        <Popup>🏢 Envirocool Company</Popup>
-      </Marker>
+        {/* Base Map Layer */}
+        <TileLayer
+          attribution='&copy; <a href="https://osm.org">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-      {/* Truck Marker */}
-      <Marker
-        position={[delivery.truck_lat, delivery.truck_lng]}
-        icon={truckIcon}
-      >
-        <Popup>
-          🚚 Truck Location <br />
-          Status: {delivery.status} <br />
-          ETA: {eta ? `${eta} mins` : "Calculating..."}
-        </Popup>
-      </Marker>
+        {/* Company Marker */}
+        {transaction.company_lat && transaction.company_lng && (
+          <Marker
+            position={[transaction.company_lat, transaction.company_lng]}
+            icon={companyIcon}
+          >
+            <Popup>🏢 Envirocool Company</Popup>
+          </Marker>
+        )}
 
-      {/* Customer Marker */}
-      <Marker
-        position={[customerCoords.lat, customerCoords.lng]}
-        icon={customerIcon}
-      >
-        <Popup>
-          🏠 {delivery.customer_name} <br />
-          {delivery.customer_address}
-        </Popup>
-      </Marker>
+        {/* Truck Marker */}
+        <Marker
+          position={[transaction.latitude, transaction.longitude]}
+          icon={truckIcon}
+        >
+          <Popup>
+            🚚 Truck Location <br />
+            Status: {transaction.delivery_status} <br />
+            ETA: {eta ? `${eta} mins` : "Calculating..."}
+          </Popup>
+        </Marker>
 
-      {/* Route Line */}
-      <Polyline
-        positions={[
-          [delivery.truck_lat, delivery.truck_lng],
-          [customerCoords.lat, customerCoords.lng],
-        ]}
-        color="green"
-      />
-    </MapContainer>
+        {/* Customer Marker */}
+        <Marker position={[location.lat, location.lng]} icon={customerIcon}>
+          <Popup>
+            🏠 {transaction.customer_name} <br />
+            {transaction.customer_address}
+          </Popup>
+        </Marker>
+
+        {/* Route Trail (from API) */}
+        {trail.length > 0 && (
+          <Polyline positions={trail} color="green" weight={4} />
+        )}
+
+        {/* Optional: Line from truck → customer */}
+        <Polyline
+          positions={[
+            [transaction.latitude, transaction.longitude],
+            [location.lat, location.lng],
+          ]}
+          color="blue"
+          dashArray="8"
+        />
+      </MapContainer>
+    </div>
   );
-}
+};
+
+export default DeliveryMap;
