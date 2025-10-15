@@ -46,7 +46,7 @@ $stmt = $conn->prepare("
     SELECT tracking_number, customer_name, customer_address, status,
            latitude AS truck_lat, longitude AS truck_lng,
            assigned_device_id
-    FROM Transactions
+    FROM transaction
     WHERE tracking_number = ?
 ");
 $stmt->bind_param("s", $tracking_number);

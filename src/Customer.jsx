@@ -30,7 +30,12 @@ const Customer = () => {
     const fetchDeliveryDetails = async () => {
       try {
         const response = await fetch(
-          `https://13.239.143.31/customer/get_delivery_by_tracking.php?tracking_number=${trackingNumber}`
+          "https://13.239.143.31/customer/get_delivery_by_tracking.php",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tracking_number: trackingNumber }),
+          }
         );
 
         const data = await response.json();
@@ -39,16 +44,16 @@ const Customer = () => {
 
           // Pre-check if feedback already exists
           if (
-            data.Transactions.customer_rating ||
-            data.Transactions.customer_feedback
+            data.transaction.customer_rating ||
+            data.transaction.customer_feedback
           ) {
             setFeedbackSubmitted(true); // ✅ disable button if feedback exists
           }
 
-          if (data.Transactions.latitude && data.Transactions.longitude) {
+          if (data.transaction.latitude && data.transaction.longitude) {
             setLocation({
-              lat: parseFloat(data.Transactions.latitude),
-              lng: parseFloat(data.Transactions.longitude),
+              lat: parseFloat(data.transaction.latitude),
+              lng: parseFloat(data.transaction.longitude),
             });
           }
         } else {
@@ -66,7 +71,7 @@ const Customer = () => {
 
   // Fetch GPS trail updates
   useEffect(() => {
-    if (!deliveryDetails?.Transactions?.tracking_number) return;
+    if (!deliveryDetails?.transaction?.tracking_number) return;
 
     const fetchRoute = async () => {
       try {
@@ -76,7 +81,7 @@ const Customer = () => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              tracking_number: deliveryDetails.Transactions.tracking_number,
+              tracking_number: deliveryDetails.transaction.tracking_number,
             }),
           }
         );
@@ -128,9 +133,10 @@ const Customer = () => {
     );
   }
 
-  const { Transactions, items } = deliveryDetails;
+  const { transaction, items } = deliveryDetails;
   const currentStepIndex = statusSteps.findIndex(
-    (step) => step.label.toLowerCase() === Transactions.status.toLowerCase()
+    (step) =>
+      step.label.toLowerCase() === transaction.delivery_status.toLowerCase()
   );
 
   return (
@@ -175,7 +181,7 @@ const Customer = () => {
         <div className="row g-4">
           {/* Order Details */}
           <div className="col-lg-5">
-            <OrderDetails Transactions={Transactions} items={items} />
+            <OrderDetails transaction={transaction} items={items} />
             <Button
               variant={feedbackSubmitted ? "success" : "primary"}
               size="lg"
@@ -199,7 +205,7 @@ const Customer = () => {
             <DeliveryMap
               location={location}
               trail={trail}
-              Transactions={Transactions}
+              transaction={transaction}
             />
           </div>
         </div>
@@ -211,7 +217,7 @@ const Customer = () => {
         onHide={() => setShowFeedbackModal(false)}
         feedback={feedback}
         setFeedback={setFeedback}
-        trackingNumber={Transactions.tracking_number}
+        trackingNumber={transaction.tracking_number}
         onFeedbackSubmitted={() => setFeedbackSubmitted(true)} // ✅ update parent
       />
 
