@@ -136,7 +136,7 @@ const Customer = () => {
   const { Transactions, items } = deliveryDetails;
   const currentStepIndex = statusSteps.findIndex(
     (step) =>
-      step.label.toLowerCase() === Transactions.delivery_status.toLowerCase()
+      step.label.toLowerCase() === Transactions.status.toLowerCase()
   );
 
   return (
