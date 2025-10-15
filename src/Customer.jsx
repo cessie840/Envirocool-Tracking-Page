@@ -27,6 +27,7 @@ const Customer = () => {
 
   // Fetch delivery details
   useEffect(() => {
+    
     const fetchDeliveryDetails = async () => {
       try {
         const response = await fetch(
