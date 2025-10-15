@@ -30,12 +30,7 @@ const Customer = () => {
     const fetchDeliveryDetails = async () => {
       try {
         const response = await fetch(
-          "https://13.239.143.31/customer/get_delivery_by_tracking.php",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tracking_number: trackingNumber }),
-          }
+          `https://13.239.143.31/customer/get_delivery_by_tracking.php?tracking_number=${trackingNumber}`
         );
 
         const data = await response.json();
@@ -135,8 +130,7 @@ const Customer = () => {
 
   const { Transactions, items } = deliveryDetails;
   const currentStepIndex = statusSteps.findIndex(
-    (step) =>
-      step.label.toLowerCase() === Transactions.status.toLowerCase()
+    (step) => step.label.toLowerCase() === Transactions.status.toLowerCase()
   );
 
   return (
