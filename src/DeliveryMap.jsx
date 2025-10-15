@@ -26,22 +26,22 @@ const customerIcon = L.icon({
   iconSize: [40, 40],
 });
 
-const DeliveryMap = ({ location, trail, transaction }) => {
+const DeliveryMap = ({ location, trail, Transactions }) => {
   const [eta, setEta] = useState(null);
 
   // --- ETA Calculation (Haversine Formula) ---
   useEffect(() => {
-    if (!location || !transaction?.latitude || !transaction?.longitude) return;
+    if (!location || !Transactions?.latitude || !Transactions?.longitude) return;
 
     const R = 6371; // Earth radius in km
     const dLat =
-      ((location.lat - parseFloat(transaction.latitude)) * Math.PI) / 180;
+      ((location.lat - parseFloat(Transactions.latitude)) * Math.PI) / 180;
     const dLon =
-      ((location.lng - parseFloat(transaction.longitude)) * Math.PI) / 180;
+      ((location.lng - parseFloat(Transactions.longitude)) * Math.PI) / 180;
 
     const a =
       Math.sin(dLat / 2) ** 2 +
-      Math.cos((parseFloat(transaction.latitude) * Math.PI) / 180) *
+      Math.cos((parseFloat(Transactions.latitude) * Math.PI) / 180) *
         Math.cos((location.lat * Math.PI) / 180) *
         Math.sin(dLon / 2) ** 2;
 
@@ -51,9 +51,9 @@ const DeliveryMap = ({ location, trail, transaction }) => {
     const avgSpeed = 40; // assume 40 km/h
     const etaMinutes = Math.round((distance / avgSpeed) * 60);
     setEta(etaMinutes);
-  }, [location, transaction]);
+  }, [location, Transactions]);
 
-  if (!transaction || !location) {
+  if (!Transactions || !location) {
     return (
       <div className="text-center py-5">
         <p className="text-muted">Map data unavailable.</p>
@@ -67,7 +67,7 @@ const DeliveryMap = ({ location, trail, transaction }) => {
       style={{ height: "500px", border: "2px solid #e0e0e0" }}
     >
       <MapContainer
-        center={[transaction.latitude, transaction.longitude]}
+        center={[Transactions.latitude, Transactions.longitude]}
         zoom={13}
         style={{ height: "100%", width: "100%" }}
       >
@@ -78,9 +78,9 @@ const DeliveryMap = ({ location, trail, transaction }) => {
         />
 
         {/* Company Marker */}
-        {transaction.company_lat && transaction.company_lng && (
+        {Transactions.company_lat && Transactions.company_lng && (
           <Marker
-            position={[transaction.company_lat, transaction.company_lng]}
+            position={[Transactions.company_lat, Transactions.company_lng]}
             icon={companyIcon}
           >
             <Popup>🏢 Envirocool Company</Popup>
@@ -89,12 +89,12 @@ const DeliveryMap = ({ location, trail, transaction }) => {
 
         {/* Truck Marker */}
         <Marker
-          position={[transaction.latitude, transaction.longitude]}
+          position={[Transactions.latitude, Transactions.longitude]}
           icon={truckIcon}
         >
           <Popup>
             🚚 Truck Location <br />
-            Status: {transaction.delivery_status} <br />
+            Status: {Transactions.status} <br />
             ETA: {eta ? `${eta} mins` : "Calculating..."}
           </Popup>
         </Marker>
@@ -102,8 +102,8 @@ const DeliveryMap = ({ location, trail, transaction }) => {
         {/* Customer Marker */}
         <Marker position={[location.lat, location.lng]} icon={customerIcon}>
           <Popup>
-            🏠 {transaction.customer_name} <br />
-            {transaction.customer_address}
+            🏠 {Transactions.customer_name} <br />
+            {Transactions.customer_address}
           </Popup>
         </Marker>
 
@@ -115,7 +115,7 @@ const DeliveryMap = ({ location, trail, transaction }) => {
         {/* Optional: Line from truck → customer */}
         <Polyline
           positions={[
-            [transaction.latitude, transaction.longitude],
+            [Transactions.latitude, Transactions.longitude],
             [location.lat, location.lng],
           ]}
           color="blue"
