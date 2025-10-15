@@ -38,7 +38,7 @@ $update->execute();
 
 // --- Optionally update transaction table ---
 $conn->query("
-    UPDATE transaction 
+    UPDATE Transactions
     SET latitude = $lat, longitude = $lng 
     WHERE assigned_device_id = '$device_id' 
       AND status IN ('Out for Delivery', 'In Transit')

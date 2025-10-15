@@ -8,7 +8,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import axios from "axios";
-import "./DeliveryMap.css"; // <-- add this for spinner styles
+import "./DeliveryMap.css";
 
 // --- ICONS ---
 const companyIcon = L.icon({
