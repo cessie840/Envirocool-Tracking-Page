@@ -44,16 +44,16 @@ const Customer = () => {
 
           // Pre-check if feedback already exists
           if (
-            data.transaction.customer_rating ||
-            data.transaction.customer_feedback
+            data.Transactions.customer_rating ||
+            data.Transactions.customer_feedback
           ) {
             setFeedbackSubmitted(true); // ✅ disable button if feedback exists
           }
 
-          if (data.transaction.latitude && data.transaction.longitude) {
+          if (data.Transactions.latitude && data.Transactions.longitude) {
             setLocation({
-              lat: parseFloat(data.transaction.latitude),
-              lng: parseFloat(data.transaction.longitude),
+              lat: parseFloat(data.Transactions.latitude),
+              lng: parseFloat(data.Transactions.longitude),
             });
           }
         } else {
@@ -71,7 +71,7 @@ const Customer = () => {
 
   // Fetch GPS trail updates
   useEffect(() => {
-    if (!deliveryDetails?.transaction?.tracking_number) return;
+    if (!deliveryDetails?.Transactions?.tracking_number) return;
 
     const fetchRoute = async () => {
       try {
@@ -81,7 +81,7 @@ const Customer = () => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              tracking_number: deliveryDetails.transaction.tracking_number,
+              tracking_number: deliveryDetails.Transactions.tracking_number,
             }),
           }
         );
@@ -133,10 +133,10 @@ const Customer = () => {
     );
   }
 
-  const { transaction, items } = deliveryDetails;
+  const { Transactions, items } = deliveryDetails;
   const currentStepIndex = statusSteps.findIndex(
     (step) =>
-      step.label.toLowerCase() === transaction.delivery_status.toLowerCase()
+      step.label.toLowerCase() === Transactions.delivery_status.toLowerCase()
   );
 
   return (
@@ -181,7 +181,7 @@ const Customer = () => {
         <div className="row g-4">
           {/* Order Details */}
           <div className="col-lg-5">
-            <OrderDetails transaction={transaction} items={items} />
+            <OrderDetails Transactions={Transactions} items={items} />
             <Button
               variant={feedbackSubmitted ? "success" : "primary"}
               size="lg"
@@ -205,7 +205,7 @@ const Customer = () => {
             <DeliveryMap
               location={location}
               trail={trail}
-              transaction={transaction}
+              Transactions={Transactions}
             />
           </div>
         </div>
@@ -217,7 +217,7 @@ const Customer = () => {
         onHide={() => setShowFeedbackModal(false)}
         feedback={feedback}
         setFeedback={setFeedback}
-        trackingNumber={transaction.tracking_number}
+        trackingNumber={Transactions.tracking_number}
         onFeedbackSubmitted={() => setFeedbackSubmitted(true)} // ✅ update parent
       />
 
