@@ -1,7 +1,16 @@
 <?php
 require_once "database.php";
 
-header("Access-Control-Allow-Origin: https://cessie840.github.io");
+$allowed_origins = [
+    "https://cessie840.github.io",
+    "http://localhost:5173",
+    "http://localhost:5173/Envirocool-Tracking-Page"
+];
+
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+}
+
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Access-Control-Allow-Credentials: true");

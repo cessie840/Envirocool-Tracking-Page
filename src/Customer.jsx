@@ -23,11 +23,10 @@ const Customer = () => {
   const [location, setLocation] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedback, setFeedback] = useState({ rating: 0, comments: "" });
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false); // ✅ new state
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   // Fetch delivery details
   useEffect(() => {
-    
     const fetchDeliveryDetails = async () => {
       try {
         const response = await fetch(
@@ -43,19 +42,20 @@ const Customer = () => {
         if (data.success) {
           setDeliveryDetails(data);
 
-          // Pre-check if feedback already exists
+          // Pre-check feedback status
           if (
             data.transaction.customer_rating ||
             data.transaction.customer_feedback
           ) {
-            setFeedbackSubmitted(true); // ✅ disable button if feedback exists
+            setFeedbackSubmitted(true);
           }
 
-          if (data.transaction.latitude && data.transaction.longitude) {
-            setLocation({
-              lat: parseFloat(data.transaction.latitude),
-              lng: parseFloat(data.transaction.longitude),
-            });
+          const lat = parseFloat(data.transaction.latitude);
+          const lng = parseFloat(data.transaction.longitude);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setLocation({ lat, lng });
+          } else {
+            console.warn("⚠️ Invalid location coordinates:", lat, lng);
           }
         } else {
           alert(data.message || "Tracking number not found.");
@@ -77,7 +77,7 @@ const Customer = () => {
     const fetchRoute = async () => {
       try {
         const response = await fetch(
-          "https://13.239.143.31/customer/map/get_route.php",
+          "https://13.239.143.31/customer/get_route.php",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -88,13 +88,20 @@ const Customer = () => {
         );
 
         const data = await response.json();
-        if (data.success && data.trail) {
-          setTrail(
-            data.trail.map((point) => [
-              parseFloat(point.lat),
-              parseFloat(point.lng),
-            ])
-          );
+        if (
+          data.success &&
+          Array.isArray(data.trail) &&
+          data.trail.length > 0
+        ) {
+          setTrail(data.trail);
+
+          // Update live location to latest GPS point
+          const lastPoint = data.trail[data.trail.length - 1];
+          const lat = parseFloat(lastPoint.lat);
+          const lng = parseFloat(lastPoint.lng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setLocation({ lat, lng });
+          }
         }
       } catch (error) {
         console.error("Error fetching route:", error);
@@ -102,32 +109,30 @@ const Customer = () => {
     };
 
     fetchRoute();
-    const interval = setInterval(fetchRoute, 5000);
+    const interval = setInterval(fetchRoute, 10000);
     return () => clearInterval(interval);
   }, [deliveryDetails]);
 
+  // Loading screen
   if (loading) {
     return (
       <div
         className="d-flex justify-content-center align-items-center min-vh-100"
-        style={{
-          background: "linear-gradient(135deg, #e3f2fd, #bbdefb)",
-        }}
+        style={{ background: "linear-gradient(135deg, #e3f2fd, #bbdefb)" }}
       >
         <Spinner animation="border" variant="light" />
       </div>
     );
   }
 
+  // If no details found
   if (!deliveryDetails) {
     return (
       <div
         className="d-flex justify-content-center align-items-center min-vh-100"
-        style={{
-          background: "linear-gradient(135deg, #e3f2fd, #bbdefb)",
-        }}
+        style={{ background: "linear-gradient(135deg, #e3f2fd, #bbdefb)" }}
       >
-        <h5 className="text-white fw-bold">
+        <h5 className="text-dark fw-bold">
           No details found for this tracking number.
         </h5>
       </div>
@@ -143,9 +148,7 @@ const Customer = () => {
   return (
     <div
       className="min-vh-100 py-5"
-      style={{
-        background: "linear-gradient(135deg, #e3f2fd, #bbdefb)",
-      }}
+      style={{ background: "linear-gradient(135deg, #e3f2fd, #bbdefb)" }}
     >
       <div
         className="container bg-white shadow rounded-4 p-4"
@@ -156,15 +159,12 @@ const Customer = () => {
           <img
             src={logo}
             alt="Envirocool Logo"
-            style={{
-              height: "80px",
-              margin: "20px",
-            }}
+            style={{ height: "80px", margin: "20px" }}
             className="mb-3"
           />
         </div>
 
-        {/* Tracking Number Badge */}
+        {/* Tracking Number */}
         <div className="text-center mb-4">
           <span className="badge bg-primary fs-6 px-4 py-2 shadow-sm">
             Tracking Number: <strong>{trackingNumber}</strong>
@@ -179,35 +179,57 @@ const Customer = () => {
           />
         </div>
 
-        <div className="row g-4">
-          {/* Order Details */}
-          <div className="col-lg-5">
+        {/* Responsive Layout */}
+        <div className="row g-4 flex-column-reverse flex-lg-row">
+          {/* 🗺️ Map on the LEFT (Desktop), on top (Mobile) */}
+          <div className="col-lg-7 d-flex">
+            <div className="w-100 h-100" style={{ minHeight: "600px" }}>
+              <DeliveryMap
+                location={location}
+                trail={trail}
+                transaction={transaction}
+              />
+            </div>
+          </div>
+
+          {/* 📋 Order Details on the RIGHT (Desktop), below (Mobile) */}
+          <div className="col-12 col-lg-5">
             <OrderDetails transaction={transaction} items={items} />
+
             <Button
-              variant={feedbackSubmitted ? "success" : "primary"}
+              variant={
+                feedbackSubmitted
+                  ? "success"
+                  : transaction.delivery_status === "Delivered"
+                  ? "primary"
+                  : "secondary"
+              }
               size="lg"
               className="w-100 fw-bold rounded-3 mt-3"
               onClick={() => setShowFeedbackModal(true)}
               style={{
-                background: feedbackSubmitted ? "#4caf50" : "#07b54aff",
+                background: feedbackSubmitted
+                  ? "#4caf50"
+                  : transaction.delivery_status === "Delivered"
+                  ? "#07b54aff"
+                  : "#9e9e9e",
                 border: "none",
-                cursor: feedbackSubmitted ? "not-allowed" : "pointer",
+                cursor:
+                  feedbackSubmitted ||
+                  transaction.delivery_status !== "Delivered"
+                    ? "not-allowed"
+                    : "pointer",
               }}
-              disabled={feedbackSubmitted} // ✅ disable after submission
+              disabled={
+                feedbackSubmitted || transaction.delivery_status !== "Delivered"
+              } // ✅ Disable unless Delivered
             >
               {feedbackSubmitted
                 ? "Feedback Already Submitted"
+                : transaction.delivery_status !== "Delivered"
+                ? "Delivery Not Yet Completed"
                 : "Confirm Delivery & Give Feedback"}
             </Button>
-          </div>
-
-          {/* Map */}
-          <div className="col-lg-7">
-            <DeliveryMap
-              location={location}
-              trail={trail}
-              transaction={transaction}
-            />
           </div>
         </div>
       </div>
@@ -219,15 +241,21 @@ const Customer = () => {
         feedback={feedback}
         setFeedback={setFeedback}
         trackingNumber={transaction.tracking_number}
-        onFeedbackSubmitted={() => setFeedbackSubmitted(true)} // ✅ update parent
+        onFeedbackSubmitted={() => setFeedbackSubmitted(true)}
       />
 
-      {/* Simple Fade-in Animation */}
+      {/* Animation */}
       <style>
         {`
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
+          }
+
+          @media (max-width: 992px) {
+            .container {
+              padding: 1.5rem;
+            }
           }
         `}
       </style>
