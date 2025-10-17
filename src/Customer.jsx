@@ -42,7 +42,6 @@ const Customer = () => {
         if (data.success) {
           setDeliveryDetails(data);
 
-          // Pre-check feedback status
           if (
             data.transaction.customer_rating ||
             data.transaction.customer_feedback
@@ -54,8 +53,6 @@ const Customer = () => {
           const lng = parseFloat(data.transaction.longitude);
           if (!isNaN(lat) && !isNaN(lng)) {
             setLocation({ lat, lng });
-          } else {
-            console.warn("⚠️ Invalid location coordinates:", lat, lng);
           }
         } else {
           alert(data.message || "Tracking number not found.");
@@ -70,7 +67,7 @@ const Customer = () => {
     fetchDeliveryDetails();
   }, [trackingNumber]);
 
-  // Fetch GPS trail updates
+  // Fetch GPS trail
   useEffect(() => {
     if (!deliveryDetails?.transaction?.tracking_number) return;
 
@@ -95,7 +92,6 @@ const Customer = () => {
         ) {
           setTrail(data.trail);
 
-          // Update live location to latest GPS point
           const lastPoint = data.trail[data.trail.length - 1];
           const lat = parseFloat(lastPoint.lat);
           const lng = parseFloat(lastPoint.lng);
@@ -164,6 +160,52 @@ const Customer = () => {
           />
         </div>
 
+        {/* Guide */}
+        <div
+          className="alert alert-info text-start shadow-sm mx-auto mb-4"
+          style={{
+            maxWidth: "800px",
+            backgroundColor: "#e3f2fd",
+            borderLeft: "6px solid #0d6efd",
+            borderRadius: "10px",
+          }}
+        >
+          <h5 className="fw-bold text-primary mb-2">
+            How to Use This Tracking Page
+          </h5>
+          <ul
+            className="mb-0"
+            style={{ fontSize: "0.95rem", color: "#0b3d91" }}
+          >
+            <li>
+              Enter or open your <strong>Tracking Number</strong> link to view
+              your delivery status.
+            </li>
+            <li>
+              The <strong>Delivery Progress</strong> shows your delivery stage:
+              Pending → Processing → Out for Delivery → Delivered.
+            </li>
+            <li>
+              The <strong>map</strong> displays your delivery route and live
+              location of the delivery vehicle.
+            </li>
+            <li>
+              Once the item is <strong>Delivered</strong>, you can confirm and
+              leave feedback using the green button below the order details.
+            </li>
+            <li>
+              If you experience any issues, please contact{" "}
+              <a
+                href="mailto:contactenvirocool@gmail.com"
+                className="text-decoration-none fw-semibold text-primary"
+              >
+                Envirocool Support
+              </a>
+              .
+            </li>
+          </ul>
+        </div>
+
         {/* Tracking Number */}
         <div className="text-center mb-4">
           <span className="badge bg-primary fs-6 px-4 py-2 shadow-sm">
@@ -180,9 +222,12 @@ const Customer = () => {
         </div>
 
         {/* Responsive Layout */}
-        <div className="row g-4 flex-column-reverse flex-lg-row">
-          {/* 🗺️ Map on the LEFT (Desktop), on top (Mobile) */}
-          <div className="col-lg-7 d-flex">
+        <div className="row g-4 flex-lg-row">
+          {/* 🗺️ Map Section */}
+          <div className="col-12 col-lg-7 order-2 order-lg-1">
+            <h5 className="fw-bold text-primary mb-3 text-center text-lg-start">
+              Live Delivery Map
+            </h5>
             <div className="w-100 h-100" style={{ minHeight: "600px" }}>
               <DeliveryMap
                 location={location}
@@ -192,8 +237,8 @@ const Customer = () => {
             </div>
           </div>
 
-          {/* 📋 Order Details on the RIGHT (Desktop), below (Mobile) */}
-          <div className="col-12 col-lg-5">
+          {/* 📋 Order Details */}
+          <div className="col-12 col-lg-5 order-3 order-lg-2">
             <OrderDetails transaction={transaction} items={items} />
 
             <Button
@@ -222,7 +267,7 @@ const Customer = () => {
               }}
               disabled={
                 feedbackSubmitted || transaction.delivery_status !== "Delivered"
-              } // ✅ Disable unless Delivered
+              }
             >
               {feedbackSubmitted
                 ? "Feedback Already Submitted"
