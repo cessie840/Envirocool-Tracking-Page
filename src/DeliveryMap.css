@@ -21,6 +21,12 @@
   margin-bottom: 10px;
 }
 
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -29,4 +35,3 @@
     transform: rotate(360deg);
   }
 }
-    

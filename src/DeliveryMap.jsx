@@ -12,21 +12,15 @@ import axios from "axios";
 import { renderToString } from "react-dom/server";
 import { PiBuildingApartmentDuotone } from "react-icons/pi";
 import { FaTruckFront, FaLocationDot } from "react-icons/fa6";
+import "./DeliveryMap.css";
 import "leaflet/dist/leaflet.css";
 
 // ========= ICONS =========
+
 // 🏢 Envirocool Company
 const companyIcon = new L.DivIcon({
   html: renderToString(
-    <div
-      style={{
-        textAlign: "center",
-        color: "#14559a",
-        lineHeight: "1.2",
-        position: "relative",
-      }}
-    >
-      {/* Label */}
+    <div style={{ textAlign: "center", color: "#14559a", lineHeight: "1.2" }}>
       <div
         style={{
           background: "white",
@@ -34,45 +28,25 @@ const companyIcon = new L.DivIcon({
           padding: "4px 8px",
           fontWeight: "bold",
           fontSize: "12px",
-          marginBottom: "8px", // ✅ adds enough vertical gap to prevent overlap
+          marginBottom: "8px",
           boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
           display: "inline-block",
         }}
       >
         Envirocool Company
       </div>
-
-      {/* Icon */}
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <PiBuildingApartmentDuotone
-          style={{
-            fontSize: "42px",
-            display: "block",
-            marginTop: "2px",
-            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
-          }}
-        />
-      </div>
+      <PiBuildingApartmentDuotone style={{ fontSize: "42px" }} />
     </div>
   ),
   iconSize: [42, 60],
-  iconAnchor: [21, 52], // ✅ aligns bottom of icon to map point
+  iconAnchor: [21, 52],
   popupAnchor: [0, -50],
-  className: "custom-company-icon",
 });
 
 // 🏠 Customer Location
 const customerIcon = new L.DivIcon({
   html: renderToString(
-    <div
-      style={{
-        textAlign: "center",
-        color: "#dc2626",
-        lineHeight: "1.2",
-        position: "relative",
-      }}
-    >
-      {/* Label */}
+    <div style={{ textAlign: "center", color: "#dc2626", lineHeight: "1.2" }}>
       <div
         style={{
           background: "white",
@@ -80,31 +54,19 @@ const customerIcon = new L.DivIcon({
           padding: "4px 8px",
           fontWeight: "bold",
           fontSize: "12px",
-          marginBottom: "8px", // ✅ consistent spacing
+          marginBottom: "8px",
           boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
           display: "inline-block",
         }}
       >
         Customer Location
       </div>
-
-      {/* Icon */}
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <FaLocationDot
-          style={{
-            fontSize: "40px",
-            display: "block",
-            marginTop: "2px",
-            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
-          }}
-        />
-      </div>
+      <FaLocationDot style={{ fontSize: "40px" }} />
     </div>
   ),
   iconSize: [40, 60],
   iconAnchor: [20, 52],
   popupAnchor: [0, -50],
-  className: "custom-customer-icon",
 });
 
 // 🚚 Delivery Truck
@@ -119,15 +81,7 @@ const createTruckIcon = (deviceId, status) => {
 
   return new L.DivIcon({
     html: renderToString(
-      <div
-        style={{
-          textAlign: "center",
-          color,
-          lineHeight: "1.2",
-          position: "relative",
-        }}
-      >
-        {/* Label */}
+      <div style={{ textAlign: "center", color, lineHeight: "1.2" }}>
         <div
           style={{
             background: "white",
@@ -135,31 +89,19 @@ const createTruckIcon = (deviceId, status) => {
             padding: "4px 8px",
             fontWeight: "bold",
             fontSize: "12px",
-            marginBottom: "8px", // ✅ same spacing as others
+            marginBottom: "8px",
             boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
             display: "inline-block",
           }}
         >
           {deviceId.replace(/device[-_]?/i, "Truck ")}
         </div>
-
-        {/* Icon */}
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <FaTruckFront
-            style={{
-              fontSize: "42px",
-              display: "block",
-              marginTop: "2px",
-              filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
-            }}
-          />
-        </div>
+        <FaTruckFront style={{ fontSize: "42px" }} />
       </div>
     ),
     iconSize: [42, 60],
-    iconAnchor: [21, 52], // ✅ same vertical alignment
+    iconAnchor: [21, 52],
     popupAnchor: [0, -50],
-    className: "custom-truck-icon",
   });
 };
 
@@ -175,21 +117,21 @@ const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// ========= HELPER: Recenter map =========
-const MapRecenter = ({ targetPosition }) => {
+// ========= FOLLOW LOGIC =========
+const MapFollowTruck = ({ truckPosition, isFollowing }) => {
   const map = useMap();
   useEffect(() => {
-    if (targetPosition) {
-      map.flyTo(targetPosition, 18, { animate: true, duration: 1.2 });
+    if (isFollowing && truckPosition) {
+      map.flyTo(truckPosition, 18, { animate: true, duration: 1.2 });
     }
-  }, [targetPosition, map]);
+  }, [truckPosition, isFollowing, map]);
   return null;
 };
 
 // ========= MAIN COMPONENT =========
 export default function DeliveryMapLive() {
-  const companyLocation = [14.2091835, 121.1368418]; // Envirocool HQ
-  const [customerLocation] = useState([14.205, 121.14]); // Replace with actual customer coords
+  const companyLocation = [14.2091835, 121.1368418];
+  const [customerLocation] = useState([14.205, 121.14]);
   const [truck, setTruck] = useState({
     deviceId: "device_001",
     position: [14.207, 121.138],
@@ -197,7 +139,7 @@ export default function DeliveryMapLive() {
     eta: "Calculating...",
   });
   const [route, setRoute] = useState([companyLocation]);
-  const [focusTruck, setFocusTruck] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(true); // ✅ Start following automatically
 
   // ========= FETCH LIVE LOCATION =========
   useEffect(() => {
@@ -215,7 +157,6 @@ export default function DeliveryMapLive() {
         const now = new Date();
         const diffMinutes = (now - lastRecorded) / 60000;
 
-        // Calculate distance moved in meters
         const moved =
           getDistanceKm(
             truck.position[0],
@@ -224,14 +165,11 @@ export default function DeliveryMapLive() {
             newPos[1]
           ) * 1000;
 
-        // Determine status
         let newStatus = "Moving";
         if (diffMinutes >= 20) newStatus = "Inactive";
         else if (moved < 2 && diffMinutes > 5) newStatus = "Stopped";
         else if (moved < 10) newStatus = "Traffic";
-        else newStatus = "Moving";
 
-        // Fetch ETA
         const distKm = getDistanceKm(
           newPos[0],
           newPos[1],
@@ -262,7 +200,10 @@ export default function DeliveryMapLive() {
   }, [truck.deviceId, customerLocation]);
 
   return (
-    <div className="border rounded shadow-sm" style={{ height: "600px" }}>
+    <div
+      className="border rounded shadow-sm position-relative"
+      style={{ height: "600px" }}
+    >
       <MapContainer
         center={companyLocation}
         zoom={16}
@@ -274,10 +215,13 @@ export default function DeliveryMapLive() {
           attribution="© OpenStreetMap contributors"
         />
 
-        {/* ✅ Auto Recenter when Truck Clicked */}
-        {focusTruck && <MapRecenter targetPosition={truck.position} />}
+        {/* 🧭 Auto-follow logic */}
+        <MapFollowTruck
+          truckPosition={truck.position}
+          isFollowing={isFollowing}
+        />
 
-        {/* 🏢 Envirocool Marker */}
+        {/* 🏢 Company Marker */}
         <Marker position={companyLocation} icon={companyIcon}>
           <Popup>Envirocool Company (HQ)</Popup>
         </Marker>
@@ -298,25 +242,16 @@ export default function DeliveryMapLive() {
           </Popup>
         </Marker>
 
-        {/* 🧭 Polyline (ROUTE) — placed BEFORE truck marker to stay behind */}
-        <Polyline
-          positions={route}
-          color="#1e5a04"
-          weight={4}
-          opacity={0.9}
-          lineJoin="round"
-          lineCap="round"
-          interactive={false}
-        />
+        {/* 🚚 Route Line */}
+        <Polyline positions={route} color="#1e5a04" weight={4} opacity={0.9} />
 
-        {/* 🚚 Truck Marker — placed AFTER route for correct z-index layering */}
+        {/* 🚛 Truck Marker */}
         <Marker
           position={truck.position}
           icon={createTruckIcon(truck.deviceId, truck.status)}
           eventHandlers={{
-            click: () => setFocusTruck(true), // 🔥 Auto focus when clicked
+            click: () => setIsFollowing((prev) => !prev), // ✅ Toggle follow on click
           }}
-          zIndexOffset={1000} // ensures it renders on top
         >
           <Popup>
             <strong>{truck.deviceId.replace(/device[-_]?/i, "Truck ")}</strong>
@@ -336,6 +271,18 @@ export default function DeliveryMapLive() {
           </Popup>
         </Marker>
       </MapContainer>
+
+      {/* 🟢 Floating follow status indicator */}
+      <div
+        className="position-absolute top-0 end-0 m-3 px-3 py-1 rounded-pill text-white shadow"
+        style={{
+          backgroundColor: isFollowing ? "#198754" : "#6c757d",
+          fontSize: "0.9rem",
+          fontWeight: "500",
+        }}
+      >
+        {isFollowing ? "Following Truck" : "Free View"}
+      </div>
     </div>
   );
 }

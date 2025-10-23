@@ -1,7 +1,7 @@
 <?php
 // --- DEBUGGING SETUP ---
 ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/php-error.log'); 
+ini_set('error_log', __DIR__ . '/php-error.log');
 error_reporting(E_ALL);
 
 // --- CORS + Headers ---
@@ -26,10 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
-// Read JSON body
+
+// --- Read JSON body ---
 $data = json_decode(file_get_contents("php://input"), true);
 
-// Validate input
+// --- Validate input ---
 if (!isset($data['tracking_number']) || empty(trim($data['tracking_number']))) {
     echo json_encode(["success" => false, "message" => "Tracking number is required"]);
     exit;
@@ -72,7 +73,7 @@ if ($row = $result->fetch_assoc()) {
 
     // -------------------- FETCH ITEMS --------------------
     $items = [];
-    $itemsSql = "SELECT description, quantity FROM PurchaseOrder WHERE transaction_id = ?";
+    $itemsSql = "SELECT description, type_of_product, quantity FROM PurchaseOrder WHERE transaction_id = ?";
     $itemsStmt = $conn->prepare($itemsSql);
     if (!$itemsStmt) {
         echo json_encode(["success" => false, "message" => "SQL error (items): " . $conn->error]);
@@ -86,10 +87,37 @@ if ($row = $result->fetch_assoc()) {
     }
     $itemsStmt->close();
 
+    // -------------------- FETCH DRIVER INFO --------------------
+    $driverInfo = null;
+    $driverSql = "
+        SELECT 
+            CONCAT(dp.pers_fname, ' ', dp.pers_lname) AS driver_name,
+            dp.pers_phone AS driver_contact
+        FROM DeliveryAssignments da
+        LEFT JOIN DeliveryPersonnel dp ON da.personnel_username = dp.pers_username
+        WHERE da.transaction_id = ?
+        LIMIT 1
+    ";
+    $driverStmt = $conn->prepare($driverSql);
+    if ($driverStmt) {
+        $driverStmt->bind_param("i", $transactionId);
+        $driverStmt->execute();
+        $driverResult = $driverStmt->get_result();
+        if ($driverRow = $driverResult->fetch_assoc()) {
+            $driverInfo = [
+                "driver_name" => $driverRow["driver_name"],
+                "driver_contact" => $driverRow["driver_contact"]
+            ];
+        }
+        $driverStmt->close();
+    }
+
+    // -------------------- FINAL RESPONSE --------------------
     echo json_encode([
         "success" => true,
         "transaction" => $row,
-        "items" => $items
+        "items" => $items,
+        "driver" => $driverInfo
     ]);
 } else {
     echo json_encode(["success" => false, "message" => "Tracking number not found"]);
@@ -97,3 +125,4 @@ if ($row = $result->fetch_assoc()) {
 
 $stmt->close();
 $conn->close();
+?>

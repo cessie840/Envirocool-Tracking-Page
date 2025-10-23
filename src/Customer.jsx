@@ -40,7 +40,11 @@ const Customer = () => {
 
         const data = await response.json();
         if (data.success) {
-          setDeliveryDetails(data);
+          setDeliveryDetails({
+            transaction: data.transaction,
+            items: data.items,
+            driver: data.driver,
+          });
 
           if (
             data.transaction.customer_rating ||
@@ -239,7 +243,11 @@ const Customer = () => {
 
           {/* 📋 Order Details */}
           <div className="col-12 col-lg-5 order-3 order-lg-2">
-            <OrderDetails transaction={transaction} items={items} />
+            <OrderDetails
+              transaction={transaction}
+              items={items}
+              driver={deliveryDetails.driver}
+            />
 
             <Button
               variant={
