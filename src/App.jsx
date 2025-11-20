@@ -3,18 +3,17 @@ import "leaflet/dist/leaflet.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-import ProtectedRoute from "./ProtectedRoute";
 import Customer from "./Customer";
 import CustomerTrackingPage from "./CustomerTrackingPage";
 
 function App() {
   return (
-    <Router>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<CustomerTrackingPage />} />
         <Route path="/customer/:trackingNumber" element={<Customer />} />
       </Routes>
-    </Router>
+    </HashRouter>
   );
 }
 
