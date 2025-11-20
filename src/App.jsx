@@ -1,6 +1,7 @@
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 import ProtectedRoute from "./ProtectedRoute";
 import Customer from "./Customer";

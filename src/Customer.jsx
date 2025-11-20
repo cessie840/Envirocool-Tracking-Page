@@ -30,7 +30,7 @@ const Customer = () => {
     const fetchDeliveryDetails = async () => {
       try {
         const response = await fetch(
-          "https://13.239.143.31/customer/get_delivery_by_tracking.php",
+          "https://delivery-api.mooo.info/customer/get_delivery_by_tracking.php",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -78,7 +78,7 @@ const Customer = () => {
     const fetchRoute = async () => {
       try {
         const response = await fetch(
-          "https://13.239.143.31/customer/get_route.php",
+          "https://delivery-api.mooo.info/customer/get_route.php",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

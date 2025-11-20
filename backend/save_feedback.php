@@ -4,7 +4,7 @@ require_once "database.php";
 $allowed_origins = [
     "https://cessie840.github.io",
     "http://localhost:5173",
-    "http://localhost:5173/Envirocool-Tracking-Page"
+    "http://localhost:5173/Envirocool-Tracking-Page",
 ];
 
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {

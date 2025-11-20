@@ -146,7 +146,7 @@ export default function DeliveryMapLive() {
     const interval = setInterval(async () => {
       try {
         const res = await axios.get(
-          `https://13.239.143.31/DeliveryTrackingSystem/get_current_location.php`,
+          `https://delivery-api.mooo.info/DeliveryTrackingSystem/get_current_location.php`,
           { params: { device_id: truck.deviceId } }
         );
         const gps = res.data.data;
@@ -177,7 +177,7 @@ export default function DeliveryMapLive() {
           customerLocation[1]
         );
         const etaRes = await axios.get(
-          `https://13.239.143.31/DeliveryTrackingSystem/get_eta.php`,
+          `https://delivery-api.mooo.info/DeliveryTrackingSystem/get_eta.php`,
           { params: { device_id: truck.deviceId, distance_km: distKm } }
         );
 
