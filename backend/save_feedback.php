@@ -2,7 +2,7 @@
 require_once "database.php";
 
 $allowed_origins = [
-    "https://cessie840.github.io",
+    "https://envirocool-tracking-page.vercel.app",
     "http://localhost:5173",
     "http://localhost:5173/Envirocool-Tracking-Page",
 ];

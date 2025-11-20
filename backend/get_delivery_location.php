@@ -3,7 +3,7 @@
 require_once "database.php";
 
 $allowed_origins = [
-    "https://cessie840.github.io",
+    "https://envirocool-tracking-page.vercel.app",
     "http://localhost:5173",
     "http://localhost:5173/Envirocool-Tracking-Page"
 ];
@@ -31,7 +31,7 @@ if (empty($trackingNumber)) {
     exit;
 }
 
-// ✅ Step 1: Get the device_id from the Transactions table
+// Get the device_id from the Transactions table
 $sql = "SELECT device_id FROM Transactions WHERE tracking_number = ? LIMIT 1";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $trackingNumber);
@@ -42,7 +42,7 @@ if ($row = $result->fetch_assoc()) {
     $deviceId = $row["device_id"];
 
     if (!empty($deviceId)) {
-        // ✅ Step 2: Get the latest location from current_positions
+        // Get the latest location from current_positions
         $locSql = "
             SELECT lat, lng, updated_at 
             FROM current_positions 

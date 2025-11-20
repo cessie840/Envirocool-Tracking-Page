@@ -2,7 +2,7 @@
 require_once "database.php";
 
 $allowed_origins = [
-    "https://cessie840.github.io",
+    "https://envirocool-tracking-page.vercel.app",
     "http://localhost:5173",
     "http://localhost:5173/Envirocool-Tracking-Page"
 ];
@@ -30,7 +30,6 @@ if (empty($trackingNumber)) {
     exit;
 }
 
-// ✅ Example query: fetch GPS trail for this transaction
 $sql = "
     SELECT g.lat, g.lng, g.recorded_at
     FROM gps_coordinates g

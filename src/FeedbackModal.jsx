@@ -40,7 +40,7 @@ const FeedbackModal = ({
 
     try {
       const response = await fetch(
-        "https://deliver-api.mooo.info/customer/save_feedback.php",
+        "https://delivery-api.mooo.info/customer/save_feedback.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

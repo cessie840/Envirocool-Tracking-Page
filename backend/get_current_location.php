@@ -1,63 +1,47 @@
 <?php
-// --- Headers ---
-header("Access-Control-Allow-Origin:  https://cessie840.github.io");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
-header("Content-Type: application/json");
+include 'database.php';
 
-// --- Handle OPTIONS preflight ---
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
+$allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:5173/add-delivery", 'https://cessie840.github.io','https://envirocool-delivery-tracking-web.vercel.app','https://envirocool-tracking-page.vercel.app'
+];
+
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
 }
 
-// --- Database connection ---
-require_once "database.php";
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Content-Type: application/json");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 $device_id = $_GET['device_id'] ?? '';
 
-if (empty($device_id)) {
-    echo json_encode(["success" => false, "error" => "Missing device_id"]);
+if (!$device_id) {
+    echo json_encode(['success' => false, 'message' => 'Device ID missing']);
     exit;
 }
 
-// --- Get current position ---
-$currentQuery = $conn->prepare("
-    SELECT lat, lng, updated_at 
-    FROM current_positions 
-    WHERE device_id = ?
-    LIMIT 1
-");
-$currentQuery->bind_param("s", $device_id);
-$currentQuery->execute();
-$currentResult = $currentQuery->get_result();
+$sql = "SELECT lat, lng, recorded_at
+        FROM gps_coordinates 
+        WHERE device_id = ? 
+        ORDER BY recorded_at DESC 
+        LIMIT 1";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("s", $device_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$row = $result->fetch_assoc();
 
-if ($currentResult->num_rows === 0) {
-    echo json_encode(["success" => false, "error" => "Device not found in current_positions"]);
-    exit;
+if ($row) {
+    echo json_encode(['success' => true, 'data' => $row]);
+} else {
+    echo json_encode(['success' => false, 'data' => null]);
 }
 
-$currentData = $currentResult->fetch_assoc();
-
-// --- Get latest GPS record (optional, for last history entry) ---
-$historyQuery = $conn->prepare("
-    SELECT recorded_at 
-    FROM gps_coordinates 
-    WHERE device_id = ?
-    ORDER BY recorded_at DESC 
-    LIMIT 1
-");
-$historyQuery->bind_param("s", $device_id);
-$historyQuery->execute();
-$historyResult = $historyQuery->get_result();
-$historyData = $historyResult->fetch_assoc();
-
-echo json_encode([
-    "success" => true,
-    "data" => [
-        "device_id"   => $device_id,
-        "lat"         => (float)$currentData['lat'],
-        "lng"         => (float)$currentData['lng'],
-        "recorded_at" => $historyData['recorded_at'] ?? $currentData['updated_at']
-    ]
-]);
+$conn->close();
+?>
