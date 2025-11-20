@@ -8,12 +8,12 @@ import CustomerTrackingPage from "./CustomerTrackingPage";
 
 function App() {
   return (
-    <HashRouter>
+    <Router>
       <Routes>
         <Route path="/" element={<CustomerTrackingPage />} />
         <Route path="/customer/:trackingNumber" element={<Customer />} />
       </Routes>
-    </HashRouter>
+    </Router>
   );
 }
 
